@@ -463,12 +463,36 @@
             </span>
           </div>
         </div>
-        <button id="mobile-menu-btn" class="md:hidden btn-apple px-4 py-2">
-          <span class="text-lg">☰</span>
-        </button>
+        <div class="flex gap-2 items-center">
+          <button id="admin-upload-btn" class="btn-apple px-4 py-2 text-sm hidden">
+            📁 Admin Upload
+          </button>
+          <button id="mobile-menu-btn" class="md:hidden btn-apple px-4 py-2">
+            <span class="text-lg">☰</span>
+          </button>
+        </div>
       </div>
     </div>
   </header>
+
+  <!-- Admin Upload Modal -->
+  <div id="admin-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="glass-dark rounded-2xl p-6 max-w-md w-full">
+      <h3 class="text-xl font-semibold mb-4">🔐 Admin File Upload</h3>
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-2">SVG Map File</label>
+        <input id="admin-svg-upload" type="file" accept=".svg" class="input-apple" />
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-2">Data File (CSV/Excel)</label>
+        <input id="admin-data-upload" type="file" accept=".csv,.xlsx,.xls" class="input-apple" />
+      </div>
+      <div class="flex gap-3">
+        <button id="admin-modal-close" class="btn-apple btn-secondary flex-1">Cancel</button>
+        <button id="admin-modal-load" class="btn-apple flex-1">Load Files</button>
+      </div>
+    </div>
+  </div>
 
   <main class="flex h-[calc(100vh-100px)] md:h-[calc(100vh-180px)] mt-2 md:mt-4">
     <aside class="desktop-sidebar w-80 glass ml-4 rounded-2xl shadow-xl overflow-y-auto" style="max-height: calc(100vh - 200px);">
@@ -628,10 +652,22 @@
     
     // ==================== CONFIG ====================
     const CONFIG = {
-      // Try multiple possible filenames
-      svgFiles: ['map.svg', 'Nov_IDN_clean.svg', 'floorplan.svg'],
-      dataFiles: ['data.csv', 'sellers.csv', 'Sellers.xlsx', 'seller_sample.csv'],
-      autoLoad: true
+      // ADMIN: Edit these to match your exact filenames in GitHub
+      svgFiles: [
+        'map.svg', 
+        'Nov_IDN_clean.svg', 
+        'floorplan.svg',
+        'exhibition-map.svg'
+      ],
+      dataFiles: [
+        'data.csv', 
+        'sellers.csv', 
+        'Sellers.xlsx', 
+        'seller_sample.csv',
+        'exhibitors.csv'
+      ],
+      autoLoad: true,
+      enableAdminUpload: true  // Show upload button if auto-load fails
     };
     
     // ==================== STATE ====================
@@ -849,15 +885,15 @@
     async function tryLoadFile(filenames, loader) {
       for (const filename of filenames) {
         try {
-          console.log(`Trying: ${filename}`);
-          loadingDetail.textContent = `Trying: ${filename}`;
+          console.log(`🔍 Trying: ${filename}`);
+          loadingDetail.textContent = `Checking: ${filename}`;
           const result = await loader(filename);
           if (result) {
-            console.log(`✅ Loaded: ${filename}`);
+            console.log(`✅ SUCCESS: ${filename}`);
             return filename;
           }
         } catch (error) {
-          console.log(`❌ Failed: ${filename}`, error.message);
+          console.log(`❌ Failed: ${filename} - ${error.message}`);
         }
       }
       return null;
@@ -865,14 +901,20 @@
 
     async function loadSVGFromServer() {
       const loader = async (filename) => {
-        const response = await fetch(filename);
-        if (!response.ok) throw new Error(`Not found: ${filename}`);
+        const response = await fetch(filename + '?t=' + Date.now()); // Cache bust
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const text = await response.text();
+        
+        // Check if it's actually SVG content
+        if (!text.includes('<svg')) {
+          throw new Error('Not a valid SVG file');
+        }
+        
         document.getElementById("svg-wrapper").innerHTML = text;
 
         svgElement = document.querySelector("#svg-wrapper svg");
-        if (!svgElement) throw new Error("Invalid SVG");
+        if (!svgElement) throw new Error("No SVG element found");
 
         svgElement.style.width = "100%";
         svgElement.style.height = "100%";
@@ -881,21 +923,28 @@
         initPanZoom();
         cacheBoothElements();
 
-        console.log(`SVG: ${boothElements.size} elements`);
+        console.log(`📊 SVG Stats: ${boothElements.size} booth elements found`);
         return true;
       };
 
       const loaded = await tryLoadFile(CONFIG.svgFiles, loader);
       
       if (!loaded) {
+        console.error('❌ No SVG file found. Tried:', CONFIG.svgFiles);
         document.getElementById("svg-wrapper").innerHTML = `
           <div class="text-center px-4">
             <div class="text-4xl mb-4">⚠️</div>
             <p class="text-red-600 font-medium">Map file not found</p>
-            <p class="text-sm text-gray-500 mt-2">Admin: Upload one of these files:</p>
-            <p class="text-xs text-gray-400 mt-1">${CONFIG.svgFiles.join(', ')}</p>
+            <p class="text-sm text-gray-500 mt-2">Files checked:</p>
+            <p class="text-xs text-gray-400 mt-1 font-mono">${CONFIG.svgFiles.join('<br>')}</p>
+            <button id="retry-svg" class="btn-apple mt-4">Retry</button>
           </div>
         `;
+        
+        document.getElementById('retry-svg')?.addEventListener('click', () => {
+          init();
+        });
+        
         return false;
       }
       
@@ -904,38 +953,52 @@
 
     async function loadDataFromServer() {
       const loader = async (filename) => {
-        const response = await fetch(filename);
-        if (!response.ok) throw new Error(`Not found: ${filename}`);
+        const response = await fetch(filename + '?t=' + Date.now()); // Cache bust
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         let jsonData;
         
         if (filename.endsWith('.csv')) {
           const text = await response.text();
+          
+          // Check if it's actually CSV content
+          if (text.length < 10) {
+            throw new Error('File too small or empty');
+          }
+          
           const parsed = Papa.parse(text, {
             header: true,
             delimiter: ";",
             skipEmptyLines: true,
             encoding: "UTF-8"
           });
+          
+          if (!parsed.data || parsed.data.length === 0) {
+            throw new Error('No data parsed from CSV');
+          }
+          
           jsonData = parsed.data;
+          console.log('📋 CSV columns:', Object.keys(jsonData[0]));
         } else {
           const data = await response.arrayBuffer();
           const workbook = XLSX.read(data, { type: "array" });
           const sheetName = workbook.SheetNames[0];
           jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+          console.log('📋 Excel columns:', Object.keys(jsonData[0]));
         }
 
         boothData = jsonData;
         buildBoothMap(jsonData);
         populateFilters(jsonData);
         
-        console.log(`Data: ${jsonData.length} exhibitors`);
+        console.log(`📊 Data Stats: ${jsonData.length} rows, ${Object.keys(boothMap).length} booths`);
         return true;
       };
 
       const loaded = await tryLoadFile(CONFIG.dataFiles, loader);
       
       if (!loaded) {
+        console.error('❌ No data file found. Tried:', CONFIG.dataFiles);
         setStatus(`⚠️ Data file not found`, "warning");
         return false;
       }
@@ -1392,10 +1455,93 @@
       isMobile = window.innerWidth <= 768;
     });
 
+    // ==================== ADMIN UPLOAD FALLBACK ====================
+    let adminSvgFile = null;
+    let adminDataFile = null;
+    
+    document.getElementById('admin-upload-btn')?.addEventListener('click', () => {
+      document.getElementById('admin-modal').classList.remove('hidden');
+    });
+    
+    document.getElementById('admin-modal-close')?.addEventListener('click', () => {
+      document.getElementById('admin-modal').classList.add('hidden');
+    });
+    
+    document.getElementById('admin-svg-upload')?.addEventListener('change', (e) => {
+      adminSvgFile = e.target.files[0];
+      console.log('Admin SVG selected:', adminSvgFile?.name);
+    });
+    
+    document.getElementById('admin-data-upload')?.addEventListener('change', (e) => {
+      adminDataFile = e.target.files[0];
+      console.log('Admin Data selected:', adminDataFile?.name);
+    });
+    
+    document.getElementById('admin-modal-load')?.addEventListener('click', async () => {
+      if (!adminSvgFile || !adminDataFile) {
+        alert('Please select both SVG and Data files');
+        return;
+      }
+      
+      document.getElementById('admin-modal').classList.add('hidden');
+      showLoading('Loading uploaded files...', 'Processing...');
+      
+      try {
+        // Load SVG
+        const svgText = await adminSvgFile.text();
+        document.getElementById("svg-wrapper").innerHTML = svgText;
+        svgElement = document.querySelector("#svg-wrapper svg");
+        
+        if (!svgElement) throw new Error("Invalid SVG file");
+        
+        svgElement.style.width = "100%";
+        svgElement.style.height = "100%";
+        svgElement.style.cursor = "grab";
+        
+        initPanZoom();
+        cacheBoothElements();
+        
+        // Load Data
+        let jsonData;
+        if (adminDataFile.name.endsWith('.csv')) {
+          const text = await adminDataFile.text();
+          const parsed = Papa.parse(text, {
+            header: true,
+            delimiter: ";",
+            skipEmptyLines: true,
+            encoding: "UTF-8"
+          });
+          jsonData = parsed.data;
+        } else {
+          const data = await adminDataFile.arrayBuffer();
+          const workbook = XLSX.read(data, { type: "array" });
+          const sheetName = workbook.SheetNames[0];
+          jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+        }
+        
+        boothData = jsonData;
+        buildBoothMap(jsonData);
+        populateFilters(jsonData);
+        bindBooths();
+        
+        setStatus('✅ Files loaded successfully', 'success');
+        hideLoading();
+        
+      } catch (error) {
+        console.error('Upload error:', error);
+        alert('Error loading files: ' + error.message);
+        hideLoading();
+      }
+    });
+
     // ==================== INITIALIZE ====================
     async function init() {
-      console.log('🚀 Initializing...');
-      showLoading('Loading exhibition data...', 'Please wait...');
+      console.log('🚀 Exhibition Navigator v2.1 - Initializing...');
+      console.log('📁 Looking for files in:', window.location.origin);
+      console.log('📂 SVG files to try:', CONFIG.svgFiles);
+      console.log('📂 Data files to try:', CONFIG.dataFiles);
+      
+      showLoading('Loading exhibition data...', 'Checking for files...');
       
       const svgLoaded = await loadSVGFromServer();
       const dataLoaded = await loadDataFromServer();
@@ -1403,17 +1549,32 @@
       if (svgLoaded && dataLoaded) {
         bindBooths();
         setStatus('✅ Exhibition ready', 'success');
+        console.log('✅ ALL SYSTEMS GO!');
       } else if (svgLoaded) {
         setStatus('⚠️ Map loaded, data missing', 'warning');
+        if (CONFIG.enableAdminUpload) {
+          document.getElementById('admin-upload-btn')?.classList.remove('hidden');
+        }
       } else {
         setStatus('❌ Failed to load files', 'warning');
+        if (CONFIG.enableAdminUpload) {
+          document.getElementById('admin-upload-btn')?.classList.remove('hidden');
+        }
+        console.error('❌ INITIALIZATION FAILED');
+        console.error('Make sure files are in the root directory of your GitHub repo');
+        console.error('Vercel deploys from: https://exhibition-navigator.vercel.app/FILENAME');
       }
       
       hideLoading();
     }
 
     if (CONFIG.autoLoad) {
-      init();
+      // Wait for DOM to be ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
     }
   </script>
 </body>
