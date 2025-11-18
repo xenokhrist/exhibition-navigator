@@ -4,237 +4,276 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Exhibition Navigator — Map</title>
+  <meta name="description" content="Interactive exhibition floor map with exhibitors list, search, filters, smooth pan/zoom and mobile pinch support" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
   <style>
-    :root{--bg:#0f172a;--panel:#0b1220;--accent:#60a5fa}
-    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:#e6eef8}
+    :root{--bg:#071028;--panel:#0b1220;--muted:#9fb4d9;--accent:#60a5fa;--glass:rgba(255,255,255,0.03)}
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'Noto Sans',sans-serif;background:var(--bg);color:#e6eef8}
     .app{height:100vh;display:flex;flex-direction:column}
     header{padding:12px 16px;display:flex;align-items:center;gap:12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent)}
     header h1{font-size:16px;margin:0}
-    main{flex:1;display:flex}
-    /* map column */
-    .map-column{flex:1;display:flex;align-items:stretch;justify-content:center;padding:12px}
-    /* container that holds SVG — we will transform this element */
-    #mapContainer{width:100%;height:100%;max-width:1400px;max-height:100%;background:#081026;border-radius:8px;overflow:hidden;position:relative;touch-action:none}
-    /* center the SVG inside container */
-    #mapWrapper{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
-    svg{max-width:100%;max-height:100%;display:block;user-select:none;pointer-events:auto}
+    main{flex:1;display:flex;min-height:0}
 
-    /* controls */
-    .panel{width:320px;background:var(--panel);padding:12px;border-left:1px solid rgba(255,255,255,0.02)}
+    /* left column: map */
+    .map-column{flex:1;display:flex;flex-direction:column;gap:8px;padding:12px;min-width:0}
+    #mapContainer{flex:1;background:#081026;border-radius:8px;overflow:hidden;position:relative;touch-action:none;display:flex}
+    #mapViewport{flex:1;display:flex;align-items:center;justify-content:center}
+    /* map wrapper will be transformed */
+    #mapWrapper{will-change:transform;display:inline-block}
+    svg{display:block;user-select:none;pointer-events:auto}
+
+    /* sidebar */
+    aside.panel{width:360px;background:var(--panel);padding:12px;border-left:1px solid var(--glass);display:flex;flex-direction:column;gap:12px}
     .controls{display:flex;gap:8px;flex-wrap:wrap}
     button{background:#0b1220;color:#e6eef8;border:1px solid rgba(255,255,255,0.03);padding:8px 10px;border-radius:6px;cursor:pointer}
-    small.hint{display:block;margin-top:8px;color:#9fb4d9}
-    footer{padding:8px 12px;font-size:12px;color:#9fb4d9;background:linear-gradient(0deg,transparent,rgba(255,255,255,0.01))}
+    .muted{color:var(--muted)}
+
+    /* exhibitors list */
+    .list{flex:1;overflow:auto;padding:8px;border-radius:6px;background:linear-gradient(180deg,transparent,rgba(255,255,255,0.01))}
+    .exhibitor{padding:8px;border-bottom:1px solid rgba(255,255,255,0.02);display:flex;gap:8px;align-items:center}
+    .exhibitor:hover{background:rgba(255,255,255,0.01);cursor:pointer}
+    .exhibitor .name{font-weight:600}
+    .exhibitor .meta{font-size:12px;color:var(--muted)}
+
+    /* top bar inside left column */
+    .topbar{display:flex;gap:8px;align-items:center;padding:6px}
+    input[type="search"], input[type="file"], select{background:transparent;border:1px solid var(--glass);color:inherit;padding:8px;border-radius:6px}
+
+    /* side details panel */
+    .details{background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);padding:12px;border-radius:6px}
+    .hidden{display:none}
+
+    /* highlight styles for svg elements */
+    .svg-highlight{filter:drop-shadow(0 4px 8px rgba(0,0,0,0.6));outline:3px solid rgba(96,165,250,0.12);transition:all 220ms ease}
+    .svg-hover{opacity:0.95;transform-origin:center;transition:transform 120ms ease}
+
+    /* tooltip */
+    .tooltip{position:absolute;background:#0b1220;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.03);font-size:13px;pointer-events:none;transform:translate(-50%, -120%);white-space:nowrap}
+
+    /* mini map */
+    #miniMap{position:absolute;right:12px;bottom:12px;width:180px;height:120px;border-radius:6px;background:rgba(3,7,12,0.6);padding:6px;border:1px solid rgba(255,255,255,0.03);box-shadow:0 6px 18px rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center}
+    #miniMap svg{width:100%;height:100%;display:block}
+    #miniViewportRect{fill:none;stroke:rgba(96,165,250,0.7);stroke-width:2}
+
+    /* responsive */
+    @media (max-width:900px){aside.panel{width:320px}} 
+    @media (max-width:720px){aside.panel{display:none}}
   </style>
 </head>
 <body>
   <div class="app">
     <header>
-      <h1>Exhibition Navigator — Map Viewer</h1>
-      <div style="margin-left:auto;opacity:0.9">Firman — MapController refactor</div>
+      <h1>Exhibition Navigator</h1>
+      <div style="margin-left:auto;opacity:0.9">Firman — Full feature refactor</div>
     </header>
 
     <main>
       <div class="map-column">
-        <div id="mapContainer">
-          <div id="mapWrapper" aria-hidden="false">
-            <!-- SVG will be loaded here via JS (keeps HTML clean and lets JS wire handlers) -->
-            <div id="loading" style="color:#7ea2ff;padding:10px">Loading map…</div>
+        <div class="topbar">
+          <label class="muted">Map file:</label>
+          <input id="inputMapFile" type="file" accept="image/svg+xml" />
+          <label class="muted">Exhibitors file:</label>
+          <input id="inputDataFile" type="file" accept="application/json" />
+
+          <input id="search" type="search" placeholder="Search company, booth, tag" style="flex:1" />
+
+          <div class="controls">
+            <button id="btnZoomIn">+</button>
+            <button id="btnZoomOut">-</button>
+            <button id="btnReset">Reset</button>
+            <button id="btnFit">Fit</button>
           </div>
+        </div>
+
+        <div id="mapContainer">
+          <div id="mapViewport">
+            <div id="mapWrapper"><div id="loading" style="color:#7ea2ff;padding:10px">Load a map.svg or drop here</div></div>
+          </div>
+
+          <div id="miniMap" aria-hidden="true" title="Mini map">
+            <!-- mini map will be injected here -->
+            <div style="color:var(--muted);font-size:12px">Mini map</div>
+          </div>
+
+          <div id="tooltip" class="tooltip hidden"></div>
         </div>
       </div>
 
       <aside class="panel">
-        <div style="margin-bottom:8px"><strong>Controls</strong></div>
-        <div class="controls">
-          <button id="zoomIn">Zoom +</button>
-          <button id="zoomOut">Zoom -</button>
-          <button id="reset">Reset</button>
-          <button id="fit">Fit to view</button>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <strong>Exhibitors</strong>
+          <small class="muted">results: <span id="count">0</span></small>
         </div>
-        <small class="hint">Drag to pan. Scroll to zoom. Pinch to zoom on mobile. Interaction uses Pointer Events + inertial panning.</small>
-        <hr style="margin:12px 0;border:none;border-top:1px solid rgba(255,255,255,0.02)" />
-        <div><strong>Diagnostics</strong></div>
-        <div id="debug" style="margin-top:8px;font-size:12px;color:#9fb4d9">status: idle</div>
+
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="filterCategory"><option value="">All categories</option></select>
+          <select id="filterTag"><option value="">All tags</option></select>
+        </div>
+
+        <div class="list" id="list"></div>
+
+        <div class="details hidden" id="detailsPanel">
+          <strong id="detailsName"></strong>
+          <div id="detailsBooth" class="muted"></div>
+          <div id="detailsCategory" class="muted"></div>
+          <p id="detailsDesc"></p>
+        </div>
+
+        <div>
+          <label style="display:flex;gap:8px;align-items:center"><input id="persistState" type="checkbox" /> <span class="muted">Save session (filters & view)</span></label>
+        </div>
+
       </aside>
     </main>
 
-    <footer>
-      Built with ❤️ — MapController + smooth pan/zoom + pinch + inertia
-    </footer>
+    <footer style="padding:10px 12px;color:var(--muted);font-size:13px">Built with MapController · pointer events · inertia · pinch · smooth UX</footer>
   </div>
 
   <script type="module">
-    // MapController: encapsulates pan/zoom behavior for an SVG or any element
-    class MapController {
-      constructor(container, options = {}) {
-        this.container = container; // element that contains the SVG
-        this.wrapper = container.querySelector('#mapWrapper');
-        this.svg = null; // will be set once SVG is loaded
+    // ------------------------ Utilities ------------------------
+    function el(selector, parent=document) { return parent.querySelector(selector); }
+    function qAll(selector, parent=document) { return Array.from(parent.querySelectorAll(selector)); }
+    function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
 
-        // transform state
+    // ------------------------ MapController ------------------------
+    class MapController {
+      constructor({container, wrapper, miniMapEl, debugEl=null, options={}}) {
+        this.container = container;
+        this.wrapper = wrapper; // element that contains svg and is transformed
+        this.svg = null; // will be set after load
+
+        // state
         this.scale = options.initialScale ?? 1;
-        this.x = options.initialX ?? 0; // translation in px
+        this.x = options.initialX ?? 0;
         this.y = options.initialY ?? 0;
 
-        // interaction state
+        // interaction
+        this.pointers = new Map();
         this.isPanning = false;
-        this.pointers = new Map(); // pointerId -> {x,y}
-        this.lastMoves = []; // recent moves for velocity calc
-        this.velocity = { x: 0, y: 0 };
+        this.lastMoves = [];
+        this.velocity = {x:0,y:0};
         this.animFrame = null;
 
-        // limits
+        // pinch
+        this.pinchStart = null;
+
+        // options
         this.minScale = options.minScale ?? 0.2;
-        this.maxScale = options.maxScale ?? 5;
+        this.maxScale = options.maxScale ?? 6;
+        this.friction = options.friction ?? 0.92;
+        this.velocityThreshold = options.velocityThreshold ?? 10; // px/sec threshold
 
-        // smoothness
-        this.friction = options.friction ?? 0.92; // inertia deceleration
-        this.velocityThreshold = options.velocityThreshold ?? 0.05;
+        this.miniMapEl = miniMapEl;
+        this.debugEl = debugEl;
 
-        // debugging hook
-        this.debugEl = document.getElementById('debug');
+        // bind
+        this._onPointerDown = this.onPointerDown.bind(this);
+        this._onPointerMove = this.onPointerMove.bind(this);
+        this._onPointerUp = this.onPointerUp.bind(this);
+        this._onWheel = this.onWheel.bind(this);
 
-        // bind handlers
-        this.onPointerDown = this.onPointerDown.bind(this);
-        this.onPointerMove = this.onPointerMove.bind(this);
-        this.onPointerUp = this.onPointerUp.bind(this);
-        this.onWheel = this.onWheel.bind(this);
-
-        // init
-        this.init();
+        // initialize listeners for container drag and wheel
+        this.attachContainerListeners();
       }
 
-      logDebug(txt){ if(this.debugEl) this.debugEl.textContent = txt }
+      attachContainerListeners(){
+        // we'll attach pointer handlers to container so that svg may not capture everything
+        this.container.addEventListener('pointerdown', this._onPointerDown, {passive:false});
+        window.addEventListener('pointermove', this._onPointerMove, {passive:false});
+        window.addEventListener('pointerup', this._onPointerUp, {passive:false});
+        window.addEventListener('pointercancel', this._onPointerUp, {passive:false});
+        this.container.addEventListener('wheel', this._onWheel, {passive:false});
 
-      async init() {
-        // load the SVG (attempt to find <svg> inside mapWrapper or fetch map.svg)
-        const existingSvg = this.wrapper.querySelector('svg');
-        if (existingSvg) {
-          this.svg = existingSvg;
-        } else {
-          // try to fetch map.svg from repo root (adjust path if needed)
-          try {
-            const resp = await fetch('/map.svg');
-            if (!resp.ok) throw new Error('map.svg not found');
-            const text = await resp.text();
-            this.wrapper.innerHTML = text;
-            this.svg = this.wrapper.querySelector('svg');
-          } catch (err) {
-            // If fetch fails, keep the loading message
-            this.logDebug('Failed loading map.svg — check path.');
-            console.warn(err);
-            return;
-          }
+        // allow drag & drop of files
+        this.container.addEventListener('dragover', (e)=>{ e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+      }
+
+      async loadSvgFromText(svgText){
+        // remove previous
+        this.wrapper.innerHTML = svgText;
+        const svg = this.wrapper.querySelector('svg');
+        if (!svg) throw new Error('No <svg> found in provided text');
+        this.svg = svg;
+        // ensure svg has viewBox for scaling calculations
+        if (!this.svg.getAttribute('viewBox')) {
+          const w = this.svg.getBBox ? this.svg.getBBox().width : this.svg.clientWidth;
+          const h = this.svg.getBBox ? this.svg.getBBox().height : this.svg.clientHeight;
+          if (w && h) this.svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
         }
 
-        // prepare svg & styles
-        this.svg.style.touchAction = 'none'; // disable default gestures
+        // disable default gestures
+        this.svg.style.touchAction = 'none';
         this.svg.style.userSelect = 'none';
         this.svg.style.transformOrigin = '0 0';
 
-        // initialize transform
         this.applyTransform();
-
-        // pointer events
-        this.svg.addEventListener('pointerdown', this.onPointerDown, { passive: false });
-        window.addEventListener('pointermove', this.onPointerMove, { passive: false });
-        window.addEventListener('pointerup', this.onPointerUp, { passive: false });
-        window.addEventListener('pointercancel', this.onPointerUp, { passive: false });
-
-        // wheel zoom
-        this.svg.addEventListener('wheel', this.onWheel, { passive: false });
-
-        // control buttons
-        document.getElementById('zoomIn').addEventListener('click', () => this.zoomBy(1.2));
-        document.getElementById('zoomOut').addEventListener('click', () => this.zoomBy(1/1.2));
-        document.getElementById('reset').addEventListener('click', () => this.reset());
-        document.getElementById('fit').addEventListener('click', () => this.fitToView());
-
-        this.logDebug('map loaded');
+        this.setupElementInteractions();
+        this.buildMiniMap();
       }
 
-      // converts client coords to local (before transform)
-      clientToLocal(clientX, clientY) {
-        const rect = this.svg.getBoundingClientRect();
-        const x = (clientX - rect.left - this.x) / this.scale;
-        const y = (clientY - rect.top - this.y) / this.scale;
-        return { x, y };
+      applyTransform(){
+        // apply translate then scale — translate in px, scale origin at 0,0
+        this.wrapper.style.transform = `translate3d(${this.x}px, ${this.y}px, 0) scale(${this.scale})`;
+        this.updateMiniViewport();
+        if (this.debugEl) this.debugEl.textContent = `scale:${this.scale.toFixed(2)} x:${Math.round(this.x)} y:${Math.round(this.y)}`;
       }
 
-      applyTransform() {
-        // apply translate then scale
-        // Use translate3d to trigger GPU acceleration
-        this.svg.style.transform = `translate3d(${this.x}px, ${this.y}px, 0) scale(${this.scale})`;
-      }
+      // pointer helpers
+      onPointerDown(e){
+        // accept only primary buttons for mouse
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        this.container.setPointerCapture?.(e.pointerId);
+        this.pointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
 
-      onPointerDown(e) {
-        // capture pointer
-        this.svg.setPointerCapture?.(e.pointerId);
-        this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-        if (this.pointers.size === 1) {
-          // start single pointer pan
+        if (this.pointers.size === 1){
           this.isPanning = true;
           this.lastMoves = [{t: performance.now(), x: e.clientX, y: e.clientY}];
-          // stop any inertia
-          this.stopAnim();
+          this.stopInertia();
         }
 
-        if (this.pointers.size === 2) {
-          // pinch start: record initial distance & midpoint
+        if (this.pointers.size === 2){
           const pts = Array.from(this.pointers.values());
-          this.pinchStart = {
-            dist: this.distance(pts[0], pts[1]),
-            scale: this.scale,
-            midpoint: { x: (pts[0].x + pts[1].x)/2, y: (pts[0].y + pts[1].y)/2 }
-          };
+          this.pinchStart = { dist: this.distance(pts[0], pts[1]), scale: this.scale, midpoint: { x:(pts[0].x+pts[1].x)/2, y:(pts[0].y+pts[1].y)/2 } };
         }
 
         e.preventDefault();
       }
 
-      onPointerMove(e) {
+      onPointerMove(e){
         if (!this.pointers.has(e.pointerId)) return;
         const prev = this.pointers.get(e.pointerId);
         const cur = { x: e.clientX, y: e.clientY };
         this.pointers.set(e.pointerId, cur);
 
-        if (this.pointers.size === 1 && this.isPanning) {
+        if (this.pointers.size === 1 && this.isPanning){
           const dx = cur.x - prev.x;
           const dy = cur.y - prev.y;
-
           this.x += dx;
           this.y += dy;
           this.applyTransform();
 
-          // save move sample for velocity
-          this.lastMoves.push({ t: performance.now(), x: cur.x, y: cur.y });
-          // keep last 10 samples
+          this.lastMoves.push({t: performance.now(), x: cur.x, y: cur.y});
           if (this.lastMoves.length > 10) this.lastMoves.shift();
         }
 
-        if (this.pointers.size === 2) {
-          // handle pinch zoom
+        if (this.pointers.size === 2){
           const pts = Array.from(this.pointers.values());
           const dist = this.distance(pts[0], pts[1]);
-          const midpoint = { x: (pts[0].x + pts[1].x)/2, y: (pts[0].y + pts[1].y)/2 };
-
+          const midpoint = { x:(pts[0].x+pts[1].x)/2, y:(pts[0].y+pts[1].y)/2 };
           const factor = dist / this.pinchStart.dist;
-          const newScale = this.clamp(this.pinchStart.scale * factor, this.minScale, this.maxScale);
 
-          // compute local coords around midpoint
-          const localBefore = this.clientToLocal(this.pinchStart.midpoint.x, this.pinchStart.midpoint.y);
-          const localAfter = this.clientToLocal(midpoint.x, midpoint.y);
+          // compute new scale
+          const newScale = clamp(this.pinchStart.scale * factor, this.minScale, this.maxScale);
 
-          // adjust translation so the midpoint stays under the same content point
-          // transform: x' = midpointClient - local*scale'
+          // compute local points BEFORE changing scale
           const rect = this.svg.getBoundingClientRect();
           const clientMidX = midpoint.x - rect.left;
           const clientMidY = midpoint.y - rect.top;
+          const localAfter = { x: (clientMidX - this.x)/newScale, y: (clientMidY - this.y)/newScale };
 
+          // set new values
           this.scale = newScale;
-          // recompute x,y to keep content stable under midpoint
           this.x = clientMidX - localAfter.x * this.scale;
           this.y = clientMidY - localAfter.y * this.scale;
 
@@ -244,70 +283,62 @@
         e.preventDefault();
       }
 
-      onPointerUp(e) {
+      onPointerUp(e){
         if (!this.pointers.has(e.pointerId)) return;
-        // remove pointer
         this.pointers.delete(e.pointerId);
 
-        if (this.pointers.size === 0 && this.isPanning) {
-          // compute velocity from lastMoves
+        if (this.pointers.size === 0 && this.isPanning){
+          // compute velocity
           const len = this.lastMoves.length;
-          if (len >= 2) {
+          if (len >= 2){
             const a = this.lastMoves[0];
-            const b = this.lastMoves[len - 1];
-            const dt = (b.t - a.t) / 1000; // seconds
-            if (dt > 0) {
-              const vx = (b.x - a.x) / dt;
-              const vy = (b.y - a.y) / dt;
-              this.velocity.x = vx;
-              this.velocity.y = vy;
-              // start inertia
+            const b = this.lastMoves[len-1];
+            const dt = (b.t - a.t)/1000;
+            if (dt > 0){
+              const vx = (b.x - a.x)/dt;
+              const vy = (b.y - a.y)/dt;
+              this.velocity.x = vx; this.velocity.y = vy;
               this.startInertia();
             }
           }
         }
 
-        // reset pan state
-        if (this.pointers.size === 0) {
+        if (this.pointers.size === 0){
           this.isPanning = false;
         }
 
         e.preventDefault();
       }
 
-      onWheel(e) {
+      onWheel(e){
         e.preventDefault();
-        // zoom towards cursor
         const delta = -e.deltaY;
         const zoomFactor = delta > 0 ? 1.08 : 1/1.08;
         const rect = this.svg.getBoundingClientRect();
         const cx = e.clientX - rect.left;
         const cy = e.clientY - rect.top;
-
-        const before = { x: (cx - this.x) / this.scale, y: (cy - this.y) / this.scale };
-        const newScale = this.clamp(this.scale * zoomFactor, this.minScale, this.maxScale);
-
+        const before = { x: (cx - this.x)/this.scale, y: (cy - this.y)/this.scale };
+        const newScale = clamp(this.scale * zoomFactor, this.minScale, this.maxScale);
         this.scale = newScale;
         this.x = cx - before.x * this.scale;
         this.y = cy - before.y * this.scale;
-
         this.applyTransform();
       }
 
-      startInertia() {
+      startInertia(){
         if (this.animFrame) cancelAnimationFrame(this.animFrame);
         const step = () => {
-          // apply velocity
-          this.x += this.velocity.x * (1/60); // assume 60fps -> px per frame
-          this.y += this.velocity.y * (1/60);
+          // apply velocity per frame (assuming 60fps)
+          this.x += this.velocity.x / 60;
+          this.y += this.velocity.y / 60;
 
-          // apply friction
+          // decelerate
           this.velocity.x *= this.friction;
           this.velocity.y *= this.friction;
 
           // stop condition
-          if (Math.abs(this.velocity.x) < this.velocityThreshold && Math.abs(this.velocity.y) < this.velocityThreshold) {
-            this.velocity.x = 0; this.velocity.y = 0; this.applyTransform(); this.animFrame = null; return;
+          if (Math.abs(this.velocity.x) < this.velocityThreshold && Math.abs(this.velocity.y) < this.velocityThreshold){
+            this.velocity.x = 0; this.velocity.y = 0; this.animFrame = null; this.applyTransform(); return;
           }
 
           this.applyTransform();
@@ -316,53 +347,327 @@
         this.animFrame = requestAnimationFrame(step);
       }
 
-      stopAnim(){ if (this.animFrame) cancelAnimationFrame(this.animFrame); this.animFrame = null; this.velocity = {x:0,y:0}; }
+      stopInertia(){ if (this.animFrame) cancelAnimationFrame(this.animFrame); this.animFrame=null; this.velocity={x:0,y:0}; }
 
-      zoomBy(factor) {
-        // center on container center
-        const rect = this.svg.getBoundingClientRect();
-        const cx = rect.width / 2;
-        const cy = rect.height / 2;
-        const before = { x: (cx - this.x) / this.scale, y: (cy - this.y) / this.scale };
-        const newScale = this.clamp(this.scale * factor, this.minScale, this.maxScale);
+      zoomBy(factor){
+        const rect = this.wrapper.getBoundingClientRect();
+        const cx = rect.width/2;
+        const cy = rect.height/2;
+        const before = { x: (cx - this.x)/this.scale, y: (cy - this.y)/this.scale };
+        const newScale = clamp(this.scale * factor, this.minScale, this.maxScale);
         this.scale = newScale;
         this.x = cx - before.x * this.scale;
         this.y = cy - before.y * this.scale;
         this.applyTransform();
       }
 
-      reset() {
-        this.scale = 1; this.x = 0; this.y = 0; this.applyTransform();
-      }
+      reset(){ this.scale=1; this.x=0; this.y=0; this.applyTransform(); }
 
-      fitToView() {
-        // naive fit: scale to fit container while preserving aspect
-        const svgBBox = this.svg.viewBox.baseVal;
-        // if viewBox not set, try bounding box
-        let vbw = svgBBox && svgBBox.width ? svgBBox.width : this.svg.clientWidth;
-        let vbh = svgBBox && svgBBox.height ? svgBBox.height : this.svg.clientHeight;
+      fitToView(){
+        // fit svg to container
         const rect = this.container.getBoundingClientRect();
-        const scaleX = rect.width / vbw;
-        const scaleY = rect.height / vbh;
-        this.scale = Math.min(scaleX, scaleY) * 0.95; // small padding
-        // center
-        this.x = (rect.width - vbw * this.scale) / 2;
-        this.y = (rect.height - vbh * this.scale) / 2;
+        const vb = this.svg.viewBox.baseVal;
+        const vbw = vb.width || this.svg.clientWidth;
+        const vbh = vb.height || this.svg.clientHeight;
+        const scaleX = rect.width / vbw; const scaleY = rect.height / vbh;
+        this.scale = Math.min(scaleX, scaleY) * 0.95;
+        this.x = (rect.width - vbw * this.scale)/2;
+        this.y = (rect.height - vbh * this.scale)/2;
         this.applyTransform();
       }
 
-      clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
       distance(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
+
+      // ------------------- element interactions: hover + click mapping -------------------
+      setupElementInteractions(){
+        // expect each exhibitor region to have data-booth or id matching exhibitor id
+        const interactive = qAll('[data-booth], [data-exhibitor-id], .exhibitor-region', this.svg);
+        interactive.forEach(el => {
+          el.style.cursor = 'pointer';
+          el.addEventListener('pointerenter', (ev)=>this._onHoverEnter(ev, el));
+          el.addEventListener('pointerleave', (ev)=>this._onHoverLeave(ev, el));
+          el.addEventListener('pointerdown', (ev)=>this._onElementClick(ev, el));
+        });
+      }
+
+      _onHoverEnter(ev, el){
+        el.classList.add('svg-hover');
+        // dispatch custom event so UI can show tooltip
+        const detail = { rect: el.getBoundingClientRect(), id: el.dataset.booth || el.id || el.dataset.exhibitorId };
+        this.container.dispatchEvent(new CustomEvent('map:element:enter', {detail}));
+      }
+      _onHoverLeave(ev, el){
+        el.classList.remove('svg-hover');
+        this.container.dispatchEvent(new CustomEvent('map:element:leave', {}));
+      }
+      _onElementClick(ev, el){
+        // determine id
+        const id = el.dataset.booth || el.id || el.dataset.exhibitorId;
+        this.container.dispatchEvent(new CustomEvent('map:element:click', {detail:{id}}));
+        ev.stopPropagation();
+      }
+
+      // ------------------- mini map (snapshot) -------------------
+      buildMiniMap(){
+        if (!this.miniMapEl) return;
+        // clone svg and strip interactive handlers
+        const clone = this.svg.cloneNode(true);
+        // remove ids that may conflict
+        clone.removeAttribute('id');
+        clone.querySelectorAll('*').forEach(n=>{ n.removeAttribute('id'); n.removeAttribute('onclick'); n.removeAttribute('onmousedown'); });
+        // clear mini map container
+        this.miniMapEl.innerHTML = '';
+        clone.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        clone.style.pointerEvents = 'none';
+        clone.style.width = '100%';
+        clone.style.height = '100%';
+        this.miniMapEl.appendChild(clone);
+
+        // add viewport rect
+        const svgns = 'http://www.w3.org/2000/svg';
+        const rect = document.createElementNS(svgns, 'rect');
+        rect.setAttribute('id', 'miniViewportRect');
+        rect.setAttribute('fill', 'none');
+        rect.setAttribute('stroke', 'rgba(96,165,250,0.7)');
+        rect.setAttribute('stroke-width', '2');
+        rect.style.pointerEvents = 'none';
+        clone.appendChild(rect);
+
+        this.miniClone = clone;
+        this.updateMiniViewport();
+      }
+
+      updateMiniViewport(){
+        if (!this.miniClone || !this.svg) return;
+        const vb = this.svg.viewBox.baseVal;
+        const vbw = vb.width || this.svg.clientWidth;
+        const vbh = vb.height || this.svg.clientHeight;
+        const containerRect = this.container.getBoundingClientRect();
+
+        // compute visible area in svg coords
+        const left = (-this.x)/this.scale;
+        const top = (-this.y)/this.scale;
+        const width = containerRect.width / this.scale;
+        const height = containerRect.height / this.scale;
+
+        const rectEl = this.miniClone.querySelector('#miniViewportRect');
+        if (!rectEl) return;
+        // map svg coords to mini svg dimensions (they share viewBox)
+        rectEl.setAttribute('x', left);
+        rectEl.setAttribute('y', top);
+        rectEl.setAttribute('width', width);
+        rectEl.setAttribute('height', height);
+      }
+
+      // highlight/unhighlight svg element by id or selector
+      highlightElementById(id){
+        this.clearHighlight();
+        if (!id) return;
+        const el = this.svg.querySelector(`[data-booth="${id}"],[data-exhibitor-id="${id}"],#${CSS.escape(id)}`);
+        if (el){ el.classList.add('svg-highlight'); el.scrollIntoView({block:'nearest',inline:'nearest'}); }
+      }
+      clearHighlight(){ qAll('.svg-highlight', this.svg).forEach(n=>n.classList.remove('svg-highlight')); }
     }
 
-    // Instantiate controller for #mapContainer
-    (function(){
-      const container = document.getElementById('mapContainer');
-      const controller = new MapController(container, { initialScale: 1, minScale: 0.3, maxScale: 6 });
+    // ------------------------ Data Manager ------------------------
+    class DataManager {
+      constructor(){ this.exhibitors = []; this.byId = new Map(); this.categories = new Set(); this.tags = new Set(); }
+      async loadFromJsonText(text){
+        const data = JSON.parse(text);
+        // expect array of exhibitors: {id, name, booth, category, tags:Array, desc}
+        this.exhibitors = Array.isArray(data) ? data : data.exhibitors || [];
+        this.byId = new Map(this.exhibitors.map(x=>[String(x.id||x.booth), x]));
+        this.categories = new Set(this.exhibitors.map(x=>x.category).filter(Boolean));
+        this.tags = new Set(this.exhibitors.flatMap(x=>x.tags||[]));
+      }
+      getById(id){ return this.byId.get(String(id)); }
+      search(term){ const t=String(term||'').toLowerCase(); if(!t) return this.exhibitors; return this.exhibitors.filter(e=>((e.name||'')+" "+(e.booth||'')+" "+(e.tags||[]).join(' ')).toLowerCase().includes(t)); }
+    }
 
-      // expose on window for debugging if needed (optional)
-      window._MapController = controller;
+    // ------------------------ UI Controller ------------------------
+    class UIController {
+      constructor(){
+        // elements
+        this.container = el('#mapContainer');
+        this.wrapper = el('#mapWrapper');
+        this.miniMap = el('#miniMap');
+        this.tooltip = el('#tooltip');
+        this.search = el('#search');
+        this.listEl = el('#list');
+        this.countEl = el('#count');
+        this.filterCategory = el('#filterCategory');
+        this.filterTag = el('#filterTag');
+        this.detailsPanel = el('#detailsPanel');
+        this.detailsName = el('#detailsName');
+        this.detailsBooth = el('#detailsBooth');
+        this.detailsCategory = el('#detailsCategory');
+        this.detailsDesc = el('#detailsDesc');
+        this.persistCheckbox = el('#persistState');
+        this.inputMapFile = el('#inputMapFile');
+        this.inputDataFile = el('#inputDataFile');
+
+        this.data = new DataManager();
+
+        this.map = new MapController({ container:this.container, wrapper:this.wrapper, miniMapEl:this.miniMap, debugEl: null, options:{ initialScale:1 } });
+
+        // event wiring
+        this.map.container.addEventListener('map:element:enter', (e)=>this.onMapHoverEnter(e.detail));
+        this.map.container.addEventListener('map:element:leave', ()=>this.onMapHoverLeave());
+        this.map.container.addEventListener('map:element:click', (e)=>this.onMapElementClick(e.detail));
+
+        this.bindUI();
+        this.restoreSession();
+      }
+
+      bindUI(){
+        el('#btnZoomIn').addEventListener('click', ()=>this.map.zoomBy(1.2));
+        el('#btnZoomOut').addEventListener('click', ()=>this.map.zoomBy(1/1.2));
+        el('#btnReset').addEventListener('click', ()=>{ this.map.reset(); this.saveSession(); });
+        el('#btnFit').addEventListener('click', ()=>{ this.map.fitToView(); this.saveSession(); });
+
+        this.search.addEventListener('input', (e)=>this.onSearch(e.target.value));
+        this.search.addEventListener('keydown', (e)=>{ if(e.key==='Enter') { this.onSearch(e.target.value); } });
+
+        this.filterCategory.addEventListener('change', ()=>this.applyFilters());
+        this.filterTag.addEventListener('change', ()=>this.applyFilters());
+        this.persistCheckbox.addEventListener('change', ()=>this.saveSession());
+
+        // file inputs
+        this.inputMapFile.addEventListener('change', (e)=>this.onMapFilePicked(e.target.files[0]));
+        this.inputDataFile.addEventListener('change', (e)=>this.onDataFilePicked(e.target.files[0]));
+
+        // drag drop for files
+        this.container.addEventListener('drop', (e)=>{ e.preventDefault(); const f = e.dataTransfer.files[0]; if(!f) return; if(f.type==='image/svg+xml' || f.name.endsWith('.svg')) this.loadMapFile(f); else if(f.type==='application/json' || f.name.endsWith('.json')) this.loadDataFile(f); });
+
+        // list click delegation
+        this.listEl.addEventListener('click', (e)=>{ const li = e.target.closest('.exhibitor'); if(!li) return; const id = li.dataset.id; this.selectExhibitor(id); });
+
+        // click outside to close details
+        document.addEventListener('click', (e)=>{ if(!e.target.closest('.panel') && !e.target.closest('#mapContainer')){ this.hideDetails(); } });
+      }
+
+      async onMapFilePicked(file){ if(!file) return; await this.loadMapFile(file); }
+      async onDataFilePicked(file){ if(!file) return; await this.loadDataFile(file); }
+
+      async loadMapFile(file){
+        const text = await file.text();
+        await this.map.loadSvgFromText(text);
+        this.saveSession();
+      }
+
+      async loadDataFile(file){
+        const text = await file.text();
+        await this.data.loadFromJsonText(text);
+        this.populateFilters();
+        this.renderList(this.data.exhibitors);
+        this.saveSession();
+      }
+
+      populateFilters(){
+        // categories
+        this.filterCategory.innerHTML = '<option value="">All categories</option>' + Array.from(this.data.categories).map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+        this.filterTag.innerHTML = '<option value="">All tags</option>' + Array.from(this.data.tags).map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+      }
+
+      onSearch(term){
+        const results = this.data.search(term);
+        this.renderList(results);
+      }
+
+      applyFilters(){
+        const cat = this.filterCategory.value;
+        const tag = this.filterTag.value;
+        const term = this.search.value;
+        let results = this.data.search(term);
+        if (cat) results = results.filter(r=>r.category===cat);
+        if (tag) results = results.filter(r=> (r.tags||[]).includes(tag));
+        this.renderList(results);
+      }
+
+      renderList(list){
+        this.listEl.innerHTML = list.map(item=>{
+          return `<div class="exhibitor" data-id="${escapeHtml(item.id||item.booth)}"><div style="flex:1"><div class="name">${escapeHtml(item.name)}</div><div class="meta">Booth: ${escapeHtml(item.booth||'')} • ${escapeHtml(item.category||'')}</div></div></div>`;
+        }).join('') || '<div style="padding:8px;color:var(--muted)">No results</div>';
+        this.countEl.textContent = String(list.length);
+      }
+
+      selectExhibitor(id){
+        const data = this.data.getById(id);
+        if (!data) return;
+        this.showDetails(data);
+        // highlight on map
+        if (this.map.svg) this.map.highlightElementById(data.booth || data.id);
+        // optionally recenter/zoom to region
+        const el = this.map.svg && this.map.svg.querySelector(`[data-booth="${CSS.escape(String(data.booth))}"]`);
+        if (el){
+          // compute element center
+          const br = el.getBoundingClientRect();
+          const containerRect = this.container.getBoundingClientRect();
+          const centerX = br.left + br.width/2 - containerRect.left;
+          const centerY = br.top + br.height/2 - containerRect.top;
+          // translate so that centerX,centerY goes to container center
+          const targetX = (containerRect.width/2) - centerX;
+          const targetY = (containerRect.height/2) - centerY;
+          this.map.x += targetX; this.map.y += targetY; this.map.applyTransform();
+        }
+        this.saveSession();
+      }
+
+      showDetails(data){
+        this.detailsPanel.classList.remove('hidden');
+        this.detailsName.textContent = data.name;
+        this.detailsBooth.textContent = 'Booth: ' + (data.booth||'');
+        this.detailsCategory.textContent = data.category || '';
+        this.detailsDesc.textContent = data.desc || '';
+      }
+      hideDetails(){ this.detailsPanel.classList.add('hidden'); this.map.clearHighlight(); }
+
+      onMapHoverEnter(detail){
+        const id = detail.id;
+        const d = this.data.getById(id);
+        if (d){ this.tooltip.textContent = d.name + ' • ' + (d.booth || ''); this.tooltip.classList.remove('hidden');
+          // position
+          const r = detail.rect;
+          this.tooltip.style.left = (r.left + r.width/2) + 'px';
+          this.tooltip.style.top = (r.top) + 'px';
+        }
+      }
+      onMapHoverLeave(){ this.tooltip.classList.add('hidden'); }
+
+      onMapElementClick(detail){ if (!detail || !detail.id) return; this.selectExhibitor(detail.id); }
+
+      // -------------------- session persistence --------------------
+      saveSession(){
+        if (!this.persistCheckbox.checked) return;
+        try{
+          const state = { scale:this.map.scale, x:this.map.x, y:this.map.y, filters:{category:this.filterCategory.value, tag:this.filterTag.value}, search:this.search.value };
+          localStorage.setItem('ex_nav_state', JSON.stringify(state));
+        }catch(e){ console.warn('persist failed', e); }
+      }
+      restoreSession(){
+        try{
+          const json = localStorage.getItem('ex_nav_state'); if(!json) return;
+          const state = JSON.parse(json);
+          if(state){ this.map.scale = state.scale||1; this.map.x = state.x||0; this.map.y = state.y||0; this.filterCategory.value = state.filters?.category||''; this.filterTag.value = state.filters?.tag||''; this.search.value = state.search||''; this.map.applyTransform(); }
+        }catch(e){ /* ignore */ }
+      }
+    }
+
+    // ------------------------ helpers ------------------------
+    function escapeHtml(str){ if(str===undefined || str===null) return ''; return String(str).replace(/[&"'<>]/g, (c)=>({ '&':'&amp;','"':'&quot;',"'":"&#39;",'<':'&lt;','>':'&gt;'}[c])); }
+
+    // ------------------------ boot ------------------------
+    const app = new UIController();
+
+    // quick dev: allow loading example map and data from repo if present
+    (async function tryAutoLoad(){
+      // attempt to fetch /map.svg and /exhibitors.json if they exist
+      try{
+        const m = await fetch('/map.svg'); if(m.ok){ const t=await m.text(); await app.map.loadSvgFromText(t); }
+      }catch(e){}
+      try{ const d = await fetch('/exhibitors.json'); if(d.ok){ const t=await d.text(); await app.data.loadFromJsonText(t); app.populateFilters(); app.renderList(app.data.exhibitors); } }catch(e){}
     })();
+
   </script>
 </body>
 </html>
