@@ -391,10 +391,10 @@
   <header class="glass-dark shadow-lg">
     <div class="max-w-screen-2xl mx-auto px-6 py-5 flex flex-wrap justify-between items-center gap-4">
       <div>
-        <h1 class="text-2xl font-semibold text-gray-900">🗺️ Super Sector - Exhibition Navigator - China Homelife Nov 2025 </h1>
+        <h1 class="text-2xl font-semibold text-gray-900">🗺️ Exhibition Navigator</h1>
         <div id="status" class="mt-2">
           <span class="status-badge status-info">
-            <span class="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+            <span class="inline-block w-2 h-2 bg-gray-600 rounded-full"></span>
             Ready to begin
           </span>
         </div>
@@ -515,10 +515,12 @@
 
   <!-- Footer -->
   <div class="footer">
-    Made with ❤️ by <a href="#" target="https://xenokhrist.github.io/profile/">Firman Khristian</a>
+    Made with ❤️ by <strong>Your Team</strong> | Powered by Claude AI
   </div>
 
   <script>
+    console.log('Exhibition Navigator v1.0 - Initializing...');
+    
     // ==================== STATE ====================
     let svgElement = null;
     let boothData = [];
@@ -711,6 +713,7 @@
       const file = e.target.files[0];
       if (!file) return;
 
+      console.log('SVG Upload started:', file.name);
       showLoading(`Loading ${file.name}...`);
       setStatus(`Loading SVG: ${file.name}`, "info");
 
@@ -737,7 +740,7 @@
         }
       } catch (error) {
         setStatus(`❌ Error loading SVG: ${error.message}`, "warning");
-        console.error(error);
+        console.error('SVG Error:', error);
       } finally {
         hideLoading();
       }
@@ -794,6 +797,7 @@
       const file = e.target.files[0];
       if (!file) return;
 
+      console.log('Excel Upload started:', file.name);
       showLoading(`Reading ${file.name}...`);
       setStatus(`Loading data: ${file.name}`, "info");
 
@@ -801,4 +805,461 @@
         let jsonData;
 
         if (file.name.endsWith('.csv')) {
+          const text = await file.text();
+          const parsed = Papa.parse(text, {
+            header: true,
+            delimiter: ";",
+            skipEmptyLines: true,
+            encoding: "UTF-8"
+          });
+          jsonData = parsed.data;
+          console.log('CSV parsed:', jsonData.length, 'rows');
+        } else {
+          const data = await file.arrayBuffer();
+          const workbook = XLSX.read(data, { type: "array" });
+          const sheetName = workbook.SheetNames[0];
+          jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+          console.log('Excel parsed:', jsonData.length, 'rows');
+        }
+
+        boothData = jsonData;
+        buildBoothMap(jsonData);
+        populateFilters(jsonData);
+        
+        setStatus(`✅ Data loaded (${jsonData.length} exhibitors)`, "success");
+        updateStats();
+
+        if (svgElement) {
+          bindBooths();
+        }
+      } catch (error) {
+        setStatus(`❌ Error loading data: ${error.message}`, "warning");
+        console.error('Excel Error:', error);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function buildBoothMap(data) {
+      boothMap = {};
+      data.forEach(row => {
+        const boothId = String(row["Stand_no"] || "").trim().toUpperCase();
+        if (boothId) {
+          boothMap[boothId] = row;
+        }
+      });
+      console.log(`Built booth map with ${Object.keys(boothMap).length} entries`);
+    }
+
+    // ==================== BOOTH BINDING ====================
+    function bindBooths() {
+      if (!svgElement || !Object.keys(boothMap).length) {
+        setStatus("⚠️ Upload both SVG and data files", "warning");
+        return;
+      }
+
+      console.log('Binding booths...');
+      let matched = 0;
+      let unmatched = 0;
+
+      boothElements.forEach((el, boothId) => {
+        const boothInfo = boothMap[boothId];
+
+        el.classList.remove("booth-highlighted", "booth-dimmed", "booth-selected", "booth-unmatched");
+        el.style.cursor = "default";
+        el.style.opacity = "";
+        el.style.filter = "";
+        el.style.display = "";
+
+        if (boothInfo) {
+          matched++;
+          el.style.cursor = "pointer";
+          el.style.opacity = "1";
           
+          const newEl = el.cloneNode(true);
+          el.parentNode.replaceChild(newEl, el);
+          boothElements.set(boothId, newEl);
+          
+          newEl.addEventListener("mouseenter", (evt) => showTooltip(evt, boothInfo));
+          newEl.addEventListener("mousemove", moveTooltip);
+          newEl.addEventListener("mouseleave", hideTooltip);
+          newEl.addEventListener("click", (e) => {
+            e.stopPropagation();
+            selectBooth(boothId, boothInfo);
+          });
+        } else {
+          unmatched++;
+          el.classList.add("booth-unmatched");
+        }
+      });
+
+      console.log(`Binding complete: ${matched} matched, ${unmatched} unmatched`);
+      setStatus(`🎯 ${matched} booths linked, ${unmatched} unmatched`, "success");
+      
+      if (svgElement) {
+        svgElement.style.display = "block";
+        svgElement.style.opacity = "1";
+      }
+      
+      applyFilters();
+    }
+
+    // ==================== TOOLTIP ====================
+    function showTooltip(evt, boothInfo) {
+      const company = boothInfo["Company name"] || "N/A";
+      const boothId = boothInfo["Stand_no"] || "";
+      const t1 = boothInfo["T1"] || "";
+      const t2 = boothInfo["T2"] || "";
+      const t3 = boothInfo["T3"] || "";
+      const products = boothInfo["Exhibited products"] || "";
+
+      tooltip.innerHTML = `
+        <div class="font-bold text-base mb-1">${company}</div>
+        <div class="text-xs text-gray-300 mb-2">📍 Booth: ${boothId}</div>
+        ${t1 ? `<div class="text-xs text-yellow-200">📂 ${t1}</div>` : ""}
+        ${t2 ? `<div class="text-xs text-yellow-200">└─ ${t2}</div>` : ""}
+        ${t3 ? `<div class="text-xs text-yellow-200">&nbsp;&nbsp;&nbsp;└─ ${t3}</div>` : ""}
+        ${products ? `<div class="text-xs text-green-200 mt-1">🏷️ ${products.substring(0, 50)}${products.length > 50 ? '...' : ''}</div>` : ""}
+      `;
+      tooltip.style.display = "block";
+      moveTooltip(evt);
+    }
+
+    function moveTooltip(evt) {
+      tooltip.style.left = (evt.pageX + 15) + "px";
+      tooltip.style.top = (evt.pageY + 15) + "px";
+    }
+
+    function hideTooltip() {
+      tooltip.style.display = "none";
+    }
+
+    // ==================== BOOTH SELECTION ====================
+    function selectBooth(boothId, boothInfo) {
+      if (selectedBoothId && boothElements.has(selectedBoothId)) {
+        const prevEl = boothElements.get(selectedBoothId);
+        prevEl.classList.remove("booth-selected");
+        prevEl.style.opacity = "";
+      }
+
+      selectedBoothId = boothId;
+      const el = boothElements.get(boothId);
+      if (el) {
+        el.classList.add("booth-selected");
+        el.style.opacity = "1";
+        el.style.display = "block";
+      }
+
+      displayBoothInfo(boothInfo);
+      setTimeout(() => zoomToBooth(boothId), 100);
+    }
+
+    function displayBoothInfo(booth) {
+      infoPanel.classList.remove("hidden");
+      infoTitle.textContent = booth["Company name"] || "Exhibitor Details";
+
+      const fields = [
+        { label: "Booth ID", key: "Stand_no" },
+        { label: "Category (T1)", key: "T1" },
+        { label: "Sub-category (T2)", key: "T2" },
+        { label: "Product Type (T3)", key: "T3" },
+        { label: "Products", key: "Exhibited products" },
+        { label: "Exhibition Area", key: "Exhibition area" }
+      ];
+
+      let html = "";
+      
+      fields.forEach(field => {
+        const value = booth[field.key] || "-";
+        const isImportant = ["T1", "T2", "T3", "Exhibited products"].includes(field.key);
+        
+        if (value !== "-") {
+          html += `
+            <div class="info-row ${isImportant ? 'bg-blue-50' : ''}">
+              <div class="info-label ${isImportant ? 'text-blue-800 font-semibold' : ''}">${field.label}:</div>
+              <div class="info-value ${isImportant ? 'text-blue-900 font-medium' : ''}">${value}</div>
+            </div>
+          `;
+        }
+      });
+
+      if (booth["International station link"]) {
+        html += `
+          <div class="info-row mt-3">
+            <div class="info-value" style="width: 100%;">
+              <a href="${booth["International station link"]}" target="_blank" 
+                 class="inline-block w-full text-center bg-gray-800 hover:bg-gray-900 text-white py-2 px-4 rounded-lg transition-colors text-sm font-medium">
+                🌐 Visit Company Website →
+              </a>
+            </div>
+          </div>
+        `;
+      }
+
+      infoContent.innerHTML = html;
+    }
+
+    function zoomToBooth(boothId) {
+      const el = boothElements.get(boothId);
+      if (!el || !svgElement) return;
+
+      try {
+        const bbox = el.getBBox();
+        const padding = Math.max(bbox.width, bbox.height) * 3;
+        const targetWidth = bbox.width + padding;
+        const targetHeight = bbox.height + padding;
+        
+        viewBox.x = bbox.x + bbox.width / 2 - targetWidth / 2;
+        viewBox.y = bbox.y + bbox.height / 2 - targetHeight / 2;
+        viewBox.width = targetWidth;
+        viewBox.height = targetHeight;
+        
+        updateViewBox();
+        
+        svgElement.style.display = 'block';
+        svgElement.style.opacity = '1';
+      } catch (error) {
+        console.error('Error zooming to booth:', error);
+        if (svgElement) {
+          svgElement.style.display = 'block';
+          svgElement.style.opacity = '1';
+        }
+      }
+    }
+
+    // ==================== FILTERS ====================
+    function populateFilters(data) {
+      const categories = [...new Set(data.map(r => r["T1"]).filter(Boolean))].sort();
+      const t1Select = document.getElementById("filter-t1");
+      t1Select.innerHTML = '<option value="">All Categories</option>';
+      categories.forEach(cat => {
+        const option = document.createElement("option");
+        option.value = cat;
+        option.textContent = cat;
+        t1Select.appendChild(option);
+      });
+      
+      const subCategories = [...new Set(data.map(r => r["T2"]).filter(Boolean))].sort();
+      const t2Select = document.getElementById("filter-t2");
+      t2Select.innerHTML = '<option value="">All Sub-categories</option>';
+      subCategories.forEach(cat => {
+        const option = document.createElement("option");
+        option.value = cat;
+        option.textContent = cat;
+        t2Select.appendChild(option);
+      });
+      
+      const productTypes = [...new Set(data.map(r => r["T3"]).filter(Boolean))].sort();
+      const t3Select = document.getElementById("filter-t3");
+      t3Select.innerHTML = '<option value="">All Product Types</option>';
+      productTypes.forEach(cat => {
+        const option = document.createElement("option");
+        option.value = cat;
+        option.textContent = cat;
+        t3Select.appendChild(option);
+      });
+      
+      console.log('Filters populated');
+    }
+
+    const debouncedFilter = debounce(applyFilters, 300);
+
+    function applyFilters() {
+      if (!svgElement || !Object.keys(boothMap).length) return;
+
+      const filters = {
+        company: document.getElementById("filter-company").value.toLowerCase().trim(),
+        t1: document.getElementById("filter-t1").value.toLowerCase().trim(),
+        t2: document.getElementById("filter-t2").value.toLowerCase().trim(),
+        t3: document.getElementById("filter-t3").value.toLowerCase().trim(),
+        product: document.getElementById("filter-product").value.toLowerCase().trim(),
+        area: document.getElementById("filter-area").value.toLowerCase().trim()
+      };
+
+      const hasActiveFilters = Object.values(filters).some(v => v !== "");
+      let visibleCount = 0;
+
+      boothElements.forEach((el, boothId) => {
+        const booth = boothMap[boothId];
+        
+        if (!booth) {
+          el.classList.add("booth-dimmed");
+          el.classList.remove("booth-highlighted");
+          return;
+        }
+
+        let match = true;
+
+        if (hasActiveFilters) {
+          if (filters.company && !(booth["Company name"] || "").toLowerCase().includes(filters.company)) {
+            match = false;
+          }
+          if (filters.t1 && !(booth["T1"] || "").toLowerCase().includes(filters.t1)) {
+            match = false;
+          }
+          if (filters.t2 && !(booth["T2"] || "").toLowerCase().includes(filters.t2)) {
+            match = false;
+          }
+          if (filters.t3 && !(booth["T3"] || "").toLowerCase().includes(filters.t3)) {
+            match = false;
+          }
+          if (filters.product && !(booth["Exhibited products"] || "").toLowerCase().includes(filters.product)) {
+            match = false;
+          }
+          if (filters.area && !(booth["Exhibition area"] || "").toLowerCase().includes(filters.area)) {
+            match = false;
+          }
+        }
+
+        if (match) {
+          el.classList.remove("booth-dimmed");
+          if (hasActiveFilters) {
+            el.classList.add("booth-highlighted");
+          } else {
+            el.classList.remove("booth-highlighted");
+          }
+          visibleCount++;
+        } else {
+          el.classList.add("booth-dimmed");
+          el.classList.remove("booth-highlighted");
+        }
+      });
+
+      updateStats(visibleCount);
+    }
+
+    function resetFilters() {
+      document.querySelectorAll("#filter-company, #filter-product, #filter-area, #quick-search").forEach(el => el.value = "");
+      document.getElementById("filter-t1").value = "";
+      document.getElementById("filter-t2").value = "";
+      document.getElementById("filter-t3").value = "";
+      
+      if (selectedBoothId && boothElements.has(selectedBoothId)) {
+        boothElements.get(selectedBoothId).classList.remove("booth-selected");
+      }
+      selectedBoothId = null;
+      infoPanel.classList.add("hidden");
+      
+      applyFilters();
+    }
+
+    function updateStats(visible = null) {
+      const total = Object.keys(boothMap).length;
+      const svgBooths = boothElements.size;
+      
+      if (visible !== null) {
+        statsEl.textContent = `${visible} of ${total} exhibitors visible`;
+      } else {
+        statsEl.textContent = `${total} exhibitors | ${svgBooths} booths in SVG`;
+      }
+    }
+
+    // ==================== QUICK SEARCH ====================
+    function quickSearch(query) {
+      query = query.trim().toUpperCase();
+      if (!query) return;
+
+      if (boothElements.has(query)) {
+        const booth = boothMap[query];
+        
+        if (booth) {
+          selectBooth(query, booth);
+          setStatus(`✅ Found booth: ${query}`, "success");
+        } else {
+          zoomToBoothWithoutData(query);
+          setStatus(`📍 Booth ${query} found (no exhibitor data)`, "info");
+        }
+      } else {
+        const normalized = query.replace(/[\s\-_]/g, '');
+        let found = false;
+        
+        for (const [boothId, element] of boothElements) {
+          const normalizedId = boothId.replace(/[\s\-_]/g, '');
+          if (normalizedId === normalized) {
+            const booth = boothMap[boothId];
+            if (booth) {
+              selectBooth(boothId, booth);
+              setStatus(`✅ Found booth: ${boothId}`, "success");
+            } else {
+              zoomToBoothWithoutData(boothId);
+              setStatus(`📍 Booth ${boothId} found (no exhibitor data)`, "info");
+            }
+            found = true;
+            break;
+          }
+        }
+        
+        if (!found) {
+          setStatus(`❌ Booth not found: ${query}`, "warning");
+        }
+      }
+    }
+    
+    function zoomToBoothWithoutData(boothId) {
+      if (selectedBoothId && boothElements.has(selectedBoothId)) {
+        boothElements.get(selectedBoothId).classList.remove("booth-selected");
+      }
+
+      selectedBoothId = boothId;
+      const el = boothElements.get(boothId);
+      el.classList.add("booth-selected");
+
+      infoPanel.classList.remove("hidden");
+      infoTitle.textContent = `Booth ${boothId}`;
+      infoContent.innerHTML = `
+        <div class="info-row">
+          <div class="info-label">Status:</div>
+          <div class="info-value">No exhibitor data available</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Booth ID:</div>
+          <div class="info-value"><strong>${boothId}</strong></div>
+        </div>
+        <div class="mt-3 text-sm text-gray-500">
+          This booth exists in the floor plan but has no corresponding exhibitor information in the uploaded data file.
+        </div>
+      `;
+
+      zoomToBooth(boothId);
+    }
+
+    // ==================== EVENT LISTENERS ====================
+    document.getElementById("svg-upload").addEventListener("change", handleSVGUpload);
+    document.getElementById("excel-upload").addEventListener("change", handleExcelUpload);
+    document.getElementById("reset-filters").addEventListener("click", resetFilters);
+    document.getElementById("reset-zoom").addEventListener("click", resetZoom);
+    
+    document.getElementById("zoom-in").addEventListener("click", () => zoom(0.8));
+    document.getElementById("zoom-out").addEventListener("click", () => zoom(1.2));
+    document.getElementById("zoom-reset").addEventListener("click", resetZoom);
+
+    ["filter-company", "filter-product", "filter-area"].forEach(id => {
+      document.getElementById(id).addEventListener("input", debouncedFilter);
+    });
+    
+    document.getElementById("filter-t1").addEventListener("change", applyFilters);
+    document.getElementById("filter-t2").addEventListener("change", applyFilters);
+    document.getElementById("filter-t3").addEventListener("change", applyFilters);
+
+    document.getElementById("quick-search").addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        quickSearch(e.target.value);
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+        e.preventDefault();
+        document.getElementById("quick-search").focus();
+      }
+      if (e.key === "Escape") {
+        resetFilters();
+      }
+    });
+
+    // Initialize
+    console.log('Exhibition Navigator ready!');
+    setStatus("Ready to begin", "info");
+  </script>
+</body>
+</html>
