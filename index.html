@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exhibition Navigator</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- XLSX (SheetJS) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  
+  <!-- PapaParse for CSV -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    * {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    
+    body { 
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+    }
+    
+    /* Apple-style glassmorphism */
+    .glass {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .glass-dark {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(30px) saturate(200%);
+      -webkit-backdrop-filter: blur(30px) saturate(200%);
+    }
+    
+    /* Loading Spinner */
+    .spinner {
+      border: 3px solid rgba(0, 0, 0, 0.1);
+      border-top: 3px solid #374151;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* Smooth fade in */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .fade-in {
+      animation: fadeIn 0.4s ease-out;
+    }
+    
+    /* Tooltip */
+    .tooltip {
+      position: fixed;
+      background: rgba(0, 0, 0, 0.92);
+      color: white;
+      padding: 14px 18px;
+      border-radius: 12px;
+      font-size: 13px;
+      pointer-events: none;
+      z-index: 1000;
+      display: none;
+      max-width: 340px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    /* Booth States */
+    .booth-highlighted {
+      filter: drop-shadow(0 0 14px #06b6d4) brightness(1.3) !important;
+      stroke: #06b6d4 !important;
+      stroke-width: 8px !important;
+      opacity: 1 !important;
+      fill: rgba(34, 211, 238, 0.25) !important;
+    }
+    
+    .booth-selected {
+      filter: drop-shadow(0 0 28px #f59e0b) brightness(1.5) !important;
+      stroke: #f59e0b !important;
+      stroke-width: 12px !important;
+      animation: pulse 1.5s ease-in-out infinite;
+      opacity: 1 !important;
+      fill: rgba(251, 191, 36, 0.35) !important;
+    }
+    
+    .booth-dimmed {
+      opacity: 0.06 !important;
+      filter: grayscale(1) blur(0.5px);
+      pointer-events: none;
+    }
+    
+    .booth-unmatched {
+      opacity: 0.18 !important;
+      filter: grayscale(1);
+    }
+    
+    @keyframes pulse {
+      0%, 100% { 
+        filter: drop-shadow(0 0 28px #f59e0b) brightness(1.5);
+        stroke-width: 12px;
+      }
+      50% { 
+        filter: drop-shadow(0 0 44px #f59e0b) brightness(1.7);
+        stroke-width: 16px;
+      }
+    }
+    
+    /* SVG Container */
+    #svg-wrapper svg {
+      cursor: grab;
+      transition: opacity 0.3s ease;
+    }
+    
+    #svg-wrapper svg:active {
+      cursor: grabbing;
+    }
+    
+    /* Apple-style inputs */
+    .input-apple {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid rgba(0, 0, 0, 0.1);
+      border-radius: 10px;
+      font-size: 15px;
+      background: rgba(255, 255, 255, 0.9);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      color: #1d1d1f;
+    }
+    
+    .input-apple:focus {
+      outline: none;
+      border-color: #374151;
+      background: white;
+      box-shadow: 0 0 0 4px rgba(55, 65, 81, 0.1);
+    }
+    
+    .input-apple::placeholder {
+      color: #86868b;
+    }
+    
+    /* Apple-style buttons */
+    .btn-apple {
+      padding: 11px 20px;
+      background: linear-gradient(180deg, #1f2937 0%, #111827 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 500;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .btn-apple:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+      background: linear-gradient(180deg, #374151 0%, #1f2937 100%);
+    }
+    
+    .btn-apple:active {
+      transform: translateY(0);
+    }
+    
+    .btn-secondary {
+      background: linear-gradient(180deg, #6b7280 0%, #4b5563 100%);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    .btn-secondary:hover {
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* File upload button */
+    .file-label {
+      display: inline-block;
+      padding: 10px 18px;
+      background: white;
+      border: 1.5px solid rgba(0, 0, 0, 0.1);
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: #1f2937;
+      transition: all 0.2s ease;
+    }
+    
+    .file-label:hover {
+      background: #f5f5f7;
+      border-color: #374151;
+    }
+    
+    .file-input {
+      display: none;
+    }
+    
+    /* Zoom Controls */
+    .zoom-controls {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 10;
+    }
+    
+    .zoom-btn {
+      width: 44px;
+      height: 44px;
+      border: none;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 500;
+      color: #1d1d1f;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    .zoom-btn:hover {
+      background: white;
+      transform: scale(1.05);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    }
+    
+    .zoom-btn:active {
+      transform: scale(0.98);
+    }
+    
+    /* Info Panel */
+    .info-panel {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      margin-top: 20px;
+      max-height: 450px;
+      overflow-y: auto;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+    
+    .info-panel::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .info-panel::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 10px;
+    }
+    
+    .info-row {
+      display: flex;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      transition: background 0.2s ease;
+    }
+    
+    .info-row:hover {
+      background: rgba(55, 65, 81, 0.02);
+    }
+    
+    .info-label {
+      font-weight: 500;
+      color: #86868b;
+      min-width: 140px;
+      font-size: 14px;
+    }
+    
+    .info-value {
+      color: #1d1d1f;
+      flex: 1;
+      font-size: 14px;
+    }
+    
+    /* Status Badge */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    
+    .status-success {
+      background: rgba(16, 185, 129, 0.15);
+      color: #047857;
+    }
+    
+    .status-warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: #b45309;
+    }
+    
+    .status-info {
+      background: rgba(55, 65, 81, 0.15);
+      color: #374151;
+    }
+    
+    /* Stats card */
+    .stats-card {
+      background: linear-gradient(135deg, rgba(55, 65, 81, 0.08) 0%, rgba(17, 24, 39, 0.08) 100%);
+      border-radius: 14px;
+      padding: 16px;
+      border: 1px solid rgba(55, 65, 81, 0.15);
+    }
+    
+    /* Section headers */
+    .section-header {
+      font-size: 13px;
+      font-weight: 600;
+      color: #86868b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      aside {
+        width: 100%;
+        max-height: 60vh;
+      }
+      
+      main {
+        flex-direction: column;
+      }
+    }
+    
+    /* Footer */
+    .footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(20px);
+      padding: 8px 20px;
+      text-align: center;
+      font-size: 12px;
+      color: #86868b;
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+      z-index: 50;
+    }
+    
+    .footer a {
+      color: #374151;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 backdrop-blur-sm">
+    <div class="glass-dark p-8 rounded-3xl shadow-2xl flex flex-col items-center">
+      <div class="spinner"></div>
+      <p class="mt-5 text-gray-700 font-medium" id="loading-text">Loading...</p>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="glass-dark shadow-lg">
+    <div class="max-w-screen-2xl mx-auto px-6 py-5 flex flex-wrap justify-between items-center gap-4">
+      <div>
+        <h1 class="text-2xl font-semibold text-gray-900">🗺️ Super Sector - Exhibition Navigator - China Homelife Nov 2025 </h1>
+        <div id="status" class="mt-2">
+          <span class="status-badge status-info">
+            <span class="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+            Ready to begin
+          </span>
+        </div>
+      </div>
+      <div class="flex gap-3 flex-wrap items-center">
+        <label class="file-label">
+          <span>📄 Choose SVG</span>
+          <input id="svg-upload" type="file" accept=".svg" class="file-input" />
+        </label>
+        <label class="file-label">
+          <span>📊 Choose Data</span>
+          <input id="excel-upload" type="file" accept=".xlsx,.xls,.csv" class="file-input" />
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex" style="height: calc(100vh - 180px); margin-top: 1rem;">
+    <!-- Sidebar -->
+    <aside class="w-80 glass ml-4 rounded-2xl shadow-xl overflow-y-auto" style="max-height: calc(100vh - 200px);">
+      <div class="p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-6">🔍 Search & Filter</h2>
+        
+        <!-- Quick Search -->
+        <div class="mb-5">
+          <label class="section-header">Quick Find Booth</label>
+          <input id="quick-search" type="text" class="input-apple" placeholder="e.g., B2H212" />
+          <p class="text-xs text-gray-500 mt-2">Press Enter to find and zoom</p>
+        </div>
+        
+        <div class="border-t border-gray-200 my-5"></div>
+        
+        <!-- Company Search -->
+        <div class="mb-5">
+          <label class="section-header">Company Name</label>
+          <input id="filter-company" type="text" class="input-apple" placeholder="Search company..." />
+        </div>
+        
+        <!-- Category (T1) -->
+        <div class="mb-5">
+          <label class="section-header">Category (T1)</label>
+          <select id="filter-t1" class="input-apple">
+            <option value="">All Categories</option>
+          </select>
+        </div>
+        
+        <!-- Sub-category (T2) -->
+        <div class="mb-5">
+          <label class="section-header">Sub-category (T2)</label>
+          <select id="filter-t2" class="input-apple">
+            <option value="">All Sub-categories</option>
+          </select>
+        </div>
+        
+        <!-- Product Type (T3) -->
+        <div class="mb-5">
+          <label class="section-header">Product Type (T3)</label>
+          <select id="filter-t3" class="input-apple">
+            <option value="">All Product Types</option>
+          </select>
+        </div>
+        
+        <!-- Products -->
+        <div class="mb-5">
+          <label class="section-header">Products</label>
+          <input id="filter-product" type="text" class="input-apple" placeholder="Search products..." />
+        </div>
+        
+        <!-- Exhibition Area -->
+        <div class="mb-5">
+          <label class="section-header">Exhibition Area</label>
+          <input id="filter-area" type="text" class="input-apple" placeholder="e.g., Homelife" />
+        </div>
+        
+        <!-- Buttons -->
+        <div class="flex gap-3 mb-5">
+          <button id="reset-filters" class="btn-apple btn-secondary flex-1">Reset All</button>
+          <button id="reset-zoom" class="btn-apple flex-1">Reset View</button>
+        </div>
+        
+        <!-- Info Panel -->
+        <div id="info-panel" class="info-panel hidden fade-in">
+          <h3 id="info-title" class="text-lg font-semibold text-gray-900 mb-3">Select a booth</h3>
+          <div id="info-content"></div>
+        </div>
+        
+        <!-- Stats -->
+        <div class="stats-card mt-5">
+          <p class="section-header mb-2">📊 Statistics</p>
+          <p id="stats" class="text-sm font-medium text-gray-700">No data loaded</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Map Container -->
+    <section id="map-container" class="flex-1 relative mx-4">
+      <div class="glass-dark rounded-2xl shadow-xl h-full overflow-hidden relative">
+        <div id="svg-wrapper" class="absolute inset-0 flex justify-center items-center">
+          <div class="text-center">
+            <div class="text-6xl mb-4">🗺️</div>
+            <p class="text-gray-600 text-lg font-medium">Upload SVG floor plan to begin</p>
+            <p class="text-gray-400 text-sm mt-2">Supports pan, zoom, and interactive booths</p>
+          </div>
+        </div>
+        
+        <!-- Zoom Controls -->
+        <div class="zoom-controls hidden" id="zoom-controls">
+          <button class="zoom-btn" id="zoom-in" title="Zoom In">+</button>
+          <button class="zoom-btn" id="zoom-out" title="Zoom Out">−</button>
+          <button class="zoom-btn" id="zoom-reset" title="Reset View" style="font-size: 16px;">⟲</button>
+        </div>
+        
+        <!-- Tooltip -->
+        <div id="tooltip" class="tooltip"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <div class="footer">
+    Made with ❤️ by <a href="#" target="https://xenokhrist.github.io/profile/">Firman Khristian</a>
+  </div>
+
+  <script>
+    // ==================== STATE ====================
+    let svgElement = null;
+    let boothData = [];
+    let boothMap = {};
+    let boothElements = new Map();
+    let selectedBoothId = null;
+    let filterTimeout = null;
+    
+    // Pan & Zoom state
+    let viewBox = { x: 0, y: 0, width: 1000, height: 1000 };
+    let isPanning = false;
+    let startPoint = { x: 0, y: 0 };
+    let scale = 1;
+
+    // ==================== DOM ELEMENTS ====================
+    const tooltip = document.getElementById("tooltip");
+    const loadingOverlay = document.getElementById("loading-overlay");
+    const loadingText = document.getElementById("loading-text");
+    const statusEl = document.getElementById("status");
+    const infoPanel = document.getElementById("info-panel");
+    const infoTitle = document.getElementById("info-title");
+    const infoContent = document.getElementById("info-content");
+    const statsEl = document.getElementById("stats");
+
+    // ==================== UTILITY FUNCTIONS ====================
+    function setStatus(msg, type = "info") {
+      const badges = {
+        success: { class: "status-success", dot: "bg-emerald-600" },
+        warning: { class: "status-warning", dot: "bg-amber-600" },
+        info: { class: "status-info", dot: "bg-gray-600" }
+      };
+      const badge = badges[type];
+      statusEl.innerHTML = `<span class="status-badge ${badge.class}">
+        <span class="inline-block w-2 h-2 ${badge.dot} rounded-full"></span>${msg}</span>`;
+      console.log(`[STATUS] ${msg}`);
+    }
+
+    function showLoading(msg = "Loading...") {
+      loadingText.textContent = msg;
+      loadingOverlay.classList.remove("hidden");
+    }
+
+    function hideLoading() {
+      loadingOverlay.classList.add("hidden");
+    }
+
+    function debounce(func, delay) {
+      return function(...args) {
+        clearTimeout(filterTimeout);
+        filterTimeout = setTimeout(() => func.apply(this, args), delay);
+      };
+    }
+
+    // ==================== PAN & ZOOM ====================
+    function initPanZoom() {
+      if (!svgElement) return;
+      
+      const vb = svgElement.getAttribute("viewBox");
+      if (vb) {
+        const parts = vb.split(/\s+|,/).map(Number);
+        viewBox = { x: parts[0], y: parts[1], width: parts[2], height: parts[3] };
+      } else {
+        const bbox = svgElement.getBBox();
+        viewBox = { x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height };
+        svgElement.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+      }
+      
+      svgElement.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 1.1 : 0.9;
+        zoom(delta, e.offsetX, e.offsetY);
+      }, { passive: false });
+      
+      svgElement.addEventListener("mousedown", startPan);
+      svgElement.addEventListener("mousemove", doPan);
+      svgElement.addEventListener("mouseup", endPan);
+      svgElement.addEventListener("mouseleave", endPan);
+      
+      svgElement.addEventListener("touchstart", handleTouchStart, { passive: false });
+      svgElement.addEventListener("touchmove", handleTouchMove, { passive: false });
+      svgElement.addEventListener("touchend", endPan);
+      
+      document.getElementById("zoom-controls").classList.remove("hidden");
+    }
+    
+    function zoom(factor, mouseX = null, mouseY = null) {
+      const newWidth = viewBox.width * factor;
+      const newHeight = viewBox.height * factor;
+      
+      if (newWidth < viewBox.width * 0.1 || newWidth > viewBox.width * 10) return;
+      
+      if (mouseX !== null && mouseY !== null) {
+        const rect = svgElement.getBoundingClientRect();
+        const svgX = viewBox.x + (mouseX / rect.width) * viewBox.width;
+        const svgY = viewBox.y + (mouseY / rect.height) * viewBox.height;
+        
+        viewBox.x = svgX - (mouseX / rect.width) * newWidth;
+        viewBox.y = svgY - (mouseY / rect.height) * newHeight;
+      } else {
+        viewBox.x += (viewBox.width - newWidth) / 2;
+        viewBox.y += (viewBox.height - newHeight) / 2;
+      }
+      
+      viewBox.width = newWidth;
+      viewBox.height = newHeight;
+      scale = 1 / factor;
+      
+      updateViewBox();
+    }
+    
+    function startPan(e) {
+      if (e.button !== 0) return;
+      isPanning = true;
+      startPoint = { x: e.clientX, y: e.clientY };
+      svgElement.style.cursor = "grabbing";
+    }
+    
+    function doPan(e) {
+      if (!isPanning) return;
+      
+      const dx = e.clientX - startPoint.x;
+      const dy = e.clientY - startPoint.y;
+      
+      const rect = svgElement.getBoundingClientRect();
+      const scaleX = viewBox.width / rect.width;
+      const scaleY = viewBox.height / rect.height;
+      
+      viewBox.x -= dx * scaleX;
+      viewBox.y -= dy * scaleY;
+      
+      startPoint = { x: e.clientX, y: e.clientY };
+      updateViewBox();
+    }
+    
+    function endPan() {
+      isPanning = false;
+      if (svgElement) svgElement.style.cursor = "grab";
+    }
+    
+    function handleTouchStart(e) {
+      if (e.touches.length === 1) {
+        e.preventDefault();
+        isPanning = true;
+        startPoint = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    }
+    
+    function handleTouchMove(e) {
+      if (!isPanning || e.touches.length !== 1) return;
+      e.preventDefault();
+      
+      const dx = e.touches[0].clientX - startPoint.x;
+      const dy = e.touches[0].clientY - startPoint.y;
+      
+      const rect = svgElement.getBoundingClientRect();
+      const scaleX = viewBox.width / rect.width;
+      const scaleY = viewBox.height / rect.height;
+      
+      viewBox.x -= dx * scaleX;
+      viewBox.y -= dy * scaleY;
+      
+      startPoint = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      updateViewBox();
+    }
+    
+    function updateViewBox() {
+      svgElement.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+    }
+    
+    function resetZoom() {
+      if (!svgElement) return;
+      
+      const bbox = svgElement.getBBox();
+      viewBox = { 
+        x: bbox.x, 
+        y: bbox.y, 
+        width: bbox.width, 
+        height: bbox.height 
+      };
+      scale = 1;
+      
+      updateViewBox();
+      
+      svgElement.style.display = "block";
+      svgElement.style.opacity = "1";
+    }
+
+    // ==================== SVG UPLOAD ====================
+    async function handleSVGUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      showLoading(`Loading ${file.name}...`);
+      setStatus(`Loading SVG: ${file.name}`, "info");
+
+      try {
+        const text = await file.text();
+        document.getElementById("svg-wrapper").innerHTML = text;
+
+        svgElement = document.querySelector("#svg-wrapper svg");
+        if (!svgElement) {
+          throw new Error("Invalid SVG file");
+        }
+
+        svgElement.style.width = "100%";
+        svgElement.style.height = "100%";
+        svgElement.style.cursor = "grab";
+
+        initPanZoom();
+        cacheBoothElements();
+
+        setStatus(`✅ SVG loaded (${boothElements.size} elements)`, "success");
+        
+        if (Object.keys(boothMap).length > 0) {
+          bindBooths();
+        }
+      } catch (error) {
+        setStatus(`❌ Error loading SVG: ${error.message}`, "warning");
+        console.error(error);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function cacheBoothElements() {
+      boothElements.clear();
+      
+      const elementsWithIds = svgElement.querySelectorAll("[id]");
+      console.log(`Found ${elementsWithIds.length} elements with ID attributes`);
+      
+      elementsWithIds.forEach(el => {
+        const id = el.id.trim();
+        if (id) {
+          const upperID = id.toUpperCase();
+          boothElements.set(upperID, el);
+        }
+      });
+      
+      const textElements = svgElement.querySelectorAll("text, tspan");
+      console.log(`Found ${textElements.length} text elements`);
+      
+      let textBoothCount = 0;
+      textElements.forEach(el => {
+        const textContent = el.textContent.trim();
+        const boothPattern = /^[A-Z0-9]{2,}[A-Z][0-9]{2,}$/i;
+        
+        if (boothPattern.test(textContent)) {
+          const upperID = textContent.toUpperCase();
+          
+          let targetElement = el;
+          let parent = el.parentElement;
+          
+          while (parent && parent !== svgElement) {
+            if (parent.tagName === 'g' || parent.tagName === 'rect' || parent.tagName === 'path') {
+              targetElement = parent;
+              break;
+            }
+            parent = parent.parentElement;
+          }
+          
+          if (!boothElements.has(upperID)) {
+            boothElements.set(upperID, targetElement);
+            textBoothCount++;
+          }
+        }
+      });
+      
+      console.log(`Cached ${boothElements.size} total booth elements (${textBoothCount} from text content)`);
+    }
+
+    // ==================== EXCEL/CSV UPLOAD ====================
+    async function handleExcelUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      showLoading(`Reading ${file.name}...`);
+      setStatus(`Loading data: ${file.name}`, "info");
+
+      try {
+        let jsonData;
+
+        if (file.name.endsWith('.csv')) {
+          
