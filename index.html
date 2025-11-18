@@ -5,13 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
   <title>Exhibition Navigator</title>
   
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- XLSX (SheetJS) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  
-  <!-- PapaParse for CSV -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   
   <style>
@@ -28,7 +23,6 @@
       overflow-x: hidden;
     }
     
-    /* Apple-style glassmorphism */
     .glass {
       background: rgba(255, 255, 255, 0.85);
       backdrop-filter: blur(20px) saturate(180%);
@@ -42,7 +36,6 @@
       -webkit-backdrop-filter: blur(30px) saturate(200%);
     }
     
-    /* Loading Spinner */
     .spinner {
       border: 3px solid rgba(0, 0, 0, 0.1);
       border-top: 3px solid #374151;
@@ -62,11 +55,8 @@
       to { opacity: 1; transform: translateY(0); }
     }
     
-    .fade-in {
-      animation: fadeIn 0.4s ease-out;
-    }
+    .fade-in { animation: fadeIn 0.4s ease-out; }
     
-    /* Tooltip */
     .tooltip {
       position: fixed;
       background: rgba(0, 0, 0, 0.92);
@@ -83,7 +73,19 @@
       border: 1px solid rgba(255, 255, 255, 0.1);
     }
     
-    /* Booth States */
+    /* Booth badges */
+    .booth-vip {
+      filter: drop-shadow(0 0 20px #fbbf24) brightness(1.6) !important;
+      stroke: #fbbf24 !important;
+      stroke-width: 14px !important;
+    }
+    
+    .booth-o2o {
+      filter: drop-shadow(0 0 16px #10b981) brightness(1.4) !important;
+      stroke: #10b981 !important;
+      stroke-width: 10px !important;
+    }
+    
     .booth-highlighted {
       filter: drop-shadow(0 0 14px #06b6d4) brightness(1.3) !important;
       stroke: #06b6d4 !important;
@@ -123,7 +125,29 @@
       }
     }
     
-    /* SVG Container */
+    /* Badge styles */
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .badge-vip {
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      color: white;
+      box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
+    }
+    
+    .badge-o2o {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    }
+    
     #svg-wrapper svg {
       cursor: grab;
       transition: opacity 0.3s ease;
@@ -134,7 +158,6 @@
       cursor: grabbing;
     }
     
-    /* Apple-style inputs */
     .input-apple {
       width: 100%;
       padding: 11px 14px;
@@ -157,7 +180,6 @@
       color: #86868b;
     }
     
-    /* Apple-style buttons */
     .btn-apple {
       padding: 11px 20px;
       background: linear-gradient(180deg, #1f2937 0%, #111827 100%);
@@ -184,14 +206,8 @@
     
     .btn-secondary {
       background: linear-gradient(180deg, #6b7280 0%, #4b5563 100%);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     }
     
-    .btn-secondary:hover {
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
-    }
-    
-    /* Zoom Controls */
     .zoom-controls {
       position: absolute;
       bottom: 20px;
@@ -226,7 +242,6 @@
       background: #f0f0f0;
     }
     
-    /* Info Panel */
     .info-panel {
       background: white;
       border-radius: 16px;
@@ -272,7 +287,6 @@
       word-wrap: break-word;
     }
     
-    /* Status Badge */
     .status-badge {
       display: inline-flex;
       align-items: center;
@@ -298,7 +312,6 @@
       color: #374151;
     }
     
-    /* Stats card */
     .stats-card {
       background: linear-gradient(135deg, rgba(55, 65, 81, 0.08) 0%, rgba(17, 24, 39, 0.08) 100%);
       border-radius: 14px;
@@ -306,7 +319,6 @@
       border: 1px solid rgba(55, 65, 81, 0.15);
     }
     
-    /* Section headers */
     .section-header {
       font-size: 13px;
       font-weight: 600;
@@ -316,7 +328,6 @@
       margin-bottom: 12px;
     }
     
-    /* Mobile drawer */
     .mobile-drawer {
       position: fixed;
       bottom: 0;
@@ -352,7 +363,6 @@
       -webkit-overflow-scrolling: touch;
     }
     
-    /* Footer */
     .footer {
       position: fixed;
       bottom: 0;
@@ -378,7 +388,19 @@
       text-decoration: underline;
     }
     
-    /* Responsive */
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+    }
+    
+    .checkbox-apple {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+    
     @media (max-width: 768px) {
       .desktop-sidebar {
         display: none !important;
@@ -421,15 +443,14 @@
 </head>
 
 <body>
-  <!-- Loading Overlay -->
   <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 backdrop-blur-sm">
     <div class="glass-dark p-8 rounded-3xl shadow-2xl flex flex-col items-center">
       <div class="spinner"></div>
       <p class="mt-5 text-gray-700 font-medium" id="loading-text">Loading exhibition data...</p>
+      <p class="mt-2 text-sm text-gray-500" id="loading-detail"></p>
     </div>
   </div>
 
-  <!-- Header -->
   <header class="glass-dark shadow-lg">
     <div class="max-w-screen-2xl mx-auto px-4 md:px-6 py-4 md:py-5">
       <div class="flex justify-between items-center">
@@ -438,7 +459,7 @@
           <div id="status" class="mt-2">
             <span class="status-badge status-info">
               <span class="inline-block w-2 h-2 bg-gray-600 rounded-full"></span>
-              Loading...
+              Initializing...
             </span>
           </div>
         </div>
@@ -450,21 +471,35 @@
   </header>
 
   <main class="flex h-[calc(100vh-100px)] md:h-[calc(100vh-180px)] mt-2 md:mt-4">
-    <!-- Desktop Sidebar -->
     <aside class="desktop-sidebar w-80 glass ml-4 rounded-2xl shadow-xl overflow-y-auto" style="max-height: calc(100vh - 200px);">
       <div class="p-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-6">🔍 Search & Filter</h2>
         
-        <!-- Quick Search -->
         <div class="mb-5">
           <label class="section-header">Quick Find Booth</label>
           <input id="quick-search" type="text" class="input-apple" placeholder="e.g., B2H212" />
-          <p class="text-xs text-gray-500 mt-2">Press Enter to find and zoom</p>
+          <p class="text-xs text-gray-500 mt-2">Press Enter to find</p>
         </div>
         
         <div class="border-t border-gray-200 my-5"></div>
         
-        <!-- Filters -->
+        <!-- Badge Filters -->
+        <div class="mb-5">
+          <label class="section-header">Exhibitor Type</label>
+          <div class="checkbox-container">
+            <input type="checkbox" id="filter-vip" class="checkbox-apple" />
+            <label for="filter-vip" class="text-sm font-medium cursor-pointer">
+              <span class="badge badge-vip">⭐ VIP</span>
+            </label>
+          </div>
+          <div class="checkbox-container">
+            <input type="checkbox" id="filter-o2o" class="checkbox-apple" />
+            <label for="filter-o2o" class="text-sm font-medium cursor-pointer">
+              <span class="badge badge-o2o">🔗 O2O</span>
+            </label>
+          </div>
+        </div>
+        
         <div class="mb-5">
           <label class="section-header">Company Name</label>
           <input id="filter-company" type="text" class="input-apple" placeholder="Search company..." />
@@ -496,63 +531,53 @@
           <input id="filter-product" type="text" class="input-apple" placeholder="Search products..." />
         </div>
         
-        <div class="mb-5">
-          <label class="section-header">Exhibition Area</label>
-          <input id="filter-area" type="text" class="input-apple" placeholder="e.g., Homelife" />
-        </div>
-        
         <div class="flex gap-3 mb-5">
           <button id="reset-filters" class="btn-apple btn-secondary flex-1">Reset All</button>
           <button id="reset-zoom" class="btn-apple flex-1">Reset View</button>
         </div>
         
-        <!-- Info Panel -->
         <div id="info-panel" class="info-panel hidden fade-in">
           <h3 id="info-title" class="text-lg font-semibold text-gray-900 mb-3">Select a booth</h3>
           <div id="info-content"></div>
         </div>
         
-        <!-- Stats -->
         <div class="stats-card mt-5">
           <p class="section-header mb-2">📊 Statistics</p>
-          <p id="stats" class="text-sm font-medium text-gray-700">Loading data...</p>
+          <p id="stats" class="text-sm font-medium text-gray-700">Loading...</p>
         </div>
       </div>
     </aside>
 
-    <!-- Mobile Drawer -->
     <div class="mobile-drawer" id="mobile-drawer">
       <div class="drawer-handle" id="drawer-handle"></div>
       <div class="drawer-content">
         <h2 class="text-lg font-semibold text-gray-900 mb-4">🔍 Search & Filter</h2>
         
         <div class="mb-4">
-          <label class="section-header">Quick Find Booth</label>
-          <input id="quick-search-mobile" type="text" class="input-apple" placeholder="e.g., B2H212" />
+          <label class="section-header">Quick Find</label>
+          <input id="quick-search-mobile" type="text" class="input-apple" placeholder="Booth ID" />
         </div>
         
         <div class="mb-4">
-          <label class="section-header">Company Name</label>
+          <label class="section-header">Type</label>
+          <div class="checkbox-container">
+            <input type="checkbox" id="filter-vip-mobile" class="checkbox-apple" />
+            <label for="filter-vip-mobile"><span class="badge badge-vip">⭐ VIP</span></label>
+          </div>
+          <div class="checkbox-container">
+            <input type="checkbox" id="filter-o2o-mobile" class="checkbox-apple" />
+            <label for="filter-o2o-mobile"><span class="badge badge-o2o">🔗 O2O</span></label>
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <label class="section-header">Company</label>
           <input id="filter-company-mobile" type="text" class="input-apple" placeholder="Search..." />
         </div>
         
         <div class="mb-4">
-          <label class="section-header">Category (T1)</label>
+          <label class="section-header">Category</label>
           <select id="filter-t1-mobile" class="input-apple">
-            <option value="">All Categories</option>
-          </select>
-        </div>
-        
-        <div class="mb-4">
-          <label class="section-header">Sub-category (T2)</label>
-          <select id="filter-t2-mobile" class="input-apple">
-            <option value="">All</option>
-          </select>
-        </div>
-        
-        <div class="mb-4">
-          <label class="section-header">Product Type (T3)</label>
-          <select id="filter-t3-mobile" class="input-apple">
             <option value="">All</option>
           </select>
         </div>
@@ -562,56 +587,51 @@
           <button id="reset-zoom-mobile" class="btn-apple flex-1">Reset View</button>
         </div>
         
-        <!-- Mobile Info Panel -->
         <div id="info-panel-mobile" class="info-panel hidden">
           <h3 id="info-title-mobile" class="text-lg font-semibold text-gray-900 mb-3">Booth Info</h3>
           <div id="info-content-mobile"></div>
         </div>
         
         <div class="stats-card mt-4 mb-20">
-          <p class="section-header mb-2">📊 Statistics</p>
+          <p class="section-header mb-2">📊 Stats</p>
           <p id="stats-mobile" class="text-sm font-medium text-gray-700">Loading...</p>
         </div>
       </div>
     </div>
 
-    <!-- Map Container -->
     <section id="map-container" class="flex-1 relative mx-2 md:mx-4">
       <div class="glass-dark rounded-2xl shadow-xl h-full overflow-hidden relative">
         <div id="svg-wrapper" class="absolute inset-0 flex justify-center items-center">
           <div class="text-center px-4">
             <div class="text-4xl md:text-6xl mb-4">🗺️</div>
-            <p class="text-gray-600 text-base md:text-lg font-medium">Loading exhibition map...</p>
+            <p class="text-gray-600 text-base md:text-lg font-medium">Loading map...</p>
           </div>
         </div>
         
-        <!-- Zoom Controls -->
         <div class="zoom-controls hidden" id="zoom-controls">
           <button class="zoom-btn" id="zoom-in" title="Zoom In">+</button>
           <button class="zoom-btn" id="zoom-out" title="Zoom Out">−</button>
-          <button class="zoom-btn" id="zoom-reset" title="Reset View" style="font-size: 18px;">⟲</button>
+          <button class="zoom-btn" id="zoom-reset" title="Reset" style="font-size: 18px;">⟲</button>
         </div>
         
-        <!-- Tooltip -->
         <div id="tooltip" class="tooltip"></div>
       </div>
     </section>
   </main>
 
-  <!-- Footer (Desktop only) -->
   <div class="footer">
     Made with ❤️ by <strong>Your Team</strong> | Powered by Claude AI
   </div>
 
   <script>
-    console.log('Exhibition Navigator v2.0 - Mobile Optimized');
+    console.log('🚀 Exhibition Navigator v2.1');
     
-    // ==================== CONFIGURATION ====================
-    // 📁 Admin: Place your files in the same directory as this HTML
+    // ==================== CONFIG ====================
     const CONFIG = {
-      svgFile: 'map.svg',        // Your SVG filename
-      dataFile: 'data.csv',      // Your CSV/Excel filename
-      autoLoad: true              // Auto-load on page load
+      // Try multiple possible filenames
+      svgFiles: ['map.svg', 'Nov_IDN_clean.svg', 'floorplan.svg'],
+      dataFiles: ['data.csv', 'sellers.csv', 'Sellers.xlsx', 'seller_sample.csv'],
+      autoLoad: true
     };
     
     // ==================== STATE ====================
@@ -623,22 +643,19 @@
     let filterTimeout = null;
     let isMobile = window.innerWidth <= 768;
     
-    // Pan & Zoom state
     let viewBox = { x: 0, y: 0, width: 1000, height: 1000 };
     let isPanning = false;
     let startPoint = { x: 0, y: 0 };
-    let scale = 1;
     let touchStartDistance = 0;
 
-    // ==================== DOM ELEMENTS ====================
     const tooltip = document.getElementById("tooltip");
     const loadingOverlay = document.getElementById("loading-overlay");
     const loadingText = document.getElementById("loading-text");
+    const loadingDetail = document.getElementById("loading-detail");
     const statusEl = document.getElementById("status");
     const mobileDrawer = document.getElementById("mobile-drawer");
     const drawerHandle = document.getElementById("drawer-handle");
 
-    // ==================== UTILITY FUNCTIONS ====================
     function setStatus(msg, type = "info") {
       const badges = {
         success: { class: "status-success", dot: "bg-emerald-600" },
@@ -651,8 +668,9 @@
       console.log(`[STATUS] ${msg}`);
     }
 
-    function showLoading(msg = "Loading...") {
+    function showLoading(msg = "Loading...", detail = "") {
       loadingText.textContent = msg;
+      loadingDetail.textContent = detail;
       loadingOverlay.classList.remove("hidden");
     }
 
@@ -671,8 +689,6 @@
     let drawerOpen = false;
     
     drawerHandle.addEventListener('click', toggleDrawer);
-    drawerHandle.addEventListener('touchstart', toggleDrawer);
-    
     document.getElementById('mobile-menu-btn').addEventListener('click', () => {
       drawerOpen = true;
       mobileDrawer.classList.add('open');
@@ -681,11 +697,7 @@
     function toggleDrawer(e) {
       e.preventDefault();
       drawerOpen = !drawerOpen;
-      if (drawerOpen) {
-        mobileDrawer.classList.add('open');
-      } else {
-        mobileDrawer.classList.remove('open');
-      }
+      mobileDrawer.classList.toggle('open', drawerOpen);
     }
 
     // ==================== PAN & ZOOM ====================
@@ -702,7 +714,6 @@
         svgElement.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
       }
       
-      // Mouse/trackpad events
       svgElement.addEventListener("wheel", (e) => {
         e.preventDefault();
         const delta = e.deltaY > 0 ? 1.1 : 0.9;
@@ -714,7 +725,6 @@
       svgElement.addEventListener("mouseup", endPan);
       svgElement.addEventListener("mouseleave", endPan);
       
-      // Touch events
       svgElement.addEventListener("touchstart", handleTouchStart, { passive: false });
       svgElement.addEventListener("touchmove", handleTouchMove, { passive: false });
       svgElement.addEventListener("touchend", endPan);
@@ -746,13 +756,6 @@
       updateViewBox();
     }
     
-    function startPan(e) {
-      if (e.button !== 0) return;
-      isPanning = true;
-      startPoint = { x: e.clientX, y: e.clientY };
-      svgElement.style.cursor = "grabbing";
-    }
-    
     function doPan(e) {
       if (!isPanning) return;
       
@@ -775,13 +778,6 @@
       if (svgElement) svgElement.style.cursor = "grab";
     }
     
-    function handleTouchStart(e) {
-      if (e.touches.length === 1) {
-        e.preventDefault();
-        isPanning = true;
-        startPoint = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      } else if (e.touches.length === 2) {
-        e.preventDefault();
     function handleTouchStart(e) {
       if (e.touches.length === 1) {
         e.preventDefault();
@@ -847,22 +843,36 @@
       };
       
       updateViewBox();
-      
-      svgElement.style.display = "block";
-      svgElement.style.opacity = "1";
     }
 
     // ==================== AUTO LOAD FILES ====================
+    async function tryLoadFile(filenames, loader) {
+      for (const filename of filenames) {
+        try {
+          console.log(`Trying: ${filename}`);
+          loadingDetail.textContent = `Trying: ${filename}`;
+          const result = await loader(filename);
+          if (result) {
+            console.log(`✅ Loaded: ${filename}`);
+            return filename;
+          }
+        } catch (error) {
+          console.log(`❌ Failed: ${filename}`, error.message);
+        }
+      }
+      return null;
+    }
+
     async function loadSVGFromServer() {
-      try {
-        const response = await fetch(CONFIG.svgFile);
-        if (!response.ok) throw new Error(`SVG not found: ${CONFIG.svgFile}`);
+      const loader = async (filename) => {
+        const response = await fetch(filename);
+        if (!response.ok) throw new Error(`Not found: ${filename}`);
         
         const text = await response.text();
         document.getElementById("svg-wrapper").innerHTML = text;
 
         svgElement = document.querySelector("#svg-wrapper svg");
-        if (!svgElement) throw new Error("Invalid SVG file");
+        if (!svgElement) throw new Error("Invalid SVG");
 
         svgElement.style.width = "100%";
         svgElement.style.height = "100%";
@@ -871,29 +881,35 @@
         initPanZoom();
         cacheBoothElements();
 
-        console.log(`✅ SVG loaded: ${boothElements.size} elements`);
+        console.log(`SVG: ${boothElements.size} elements`);
         return true;
-      } catch (error) {
-        console.error('SVG Load Error:', error);
+      };
+
+      const loaded = await tryLoadFile(CONFIG.svgFiles, loader);
+      
+      if (!loaded) {
         document.getElementById("svg-wrapper").innerHTML = `
           <div class="text-center px-4">
             <div class="text-4xl mb-4">⚠️</div>
-            <p class="text-red-600 font-medium">Failed to load map</p>
-            <p class="text-sm text-gray-500 mt-2">Admin: Upload "${CONFIG.svgFile}" to server</p>
+            <p class="text-red-600 font-medium">Map file not found</p>
+            <p class="text-sm text-gray-500 mt-2">Admin: Upload one of these files:</p>
+            <p class="text-xs text-gray-400 mt-1">${CONFIG.svgFiles.join(', ')}</p>
           </div>
         `;
         return false;
       }
+      
+      return true;
     }
 
     async function loadDataFromServer() {
-      try {
-        const response = await fetch(CONFIG.dataFile);
-        if (!response.ok) throw new Error(`Data file not found: ${CONFIG.dataFile}`);
+      const loader = async (filename) => {
+        const response = await fetch(filename);
+        if (!response.ok) throw new Error(`Not found: ${filename}`);
         
         let jsonData;
         
-        if (CONFIG.dataFile.endsWith('.csv')) {
+        if (filename.endsWith('.csv')) {
           const text = await response.text();
           const parsed = Papa.parse(text, {
             header: true,
@@ -913,13 +929,18 @@
         buildBoothMap(jsonData);
         populateFilters(jsonData);
         
-        console.log(`✅ Data loaded: ${jsonData.length} exhibitors`);
+        console.log(`Data: ${jsonData.length} exhibitors`);
         return true;
-      } catch (error) {
-        console.error('Data Load Error:', error);
+      };
+
+      const loaded = await tryLoadFile(CONFIG.dataFiles, loader);
+      
+      if (!loaded) {
         setStatus(`⚠️ Data file not found`, "warning");
         return false;
       }
+      
+      return true;
     }
 
     function cacheBoothElements() {
@@ -983,11 +1004,13 @@
 
       let matched = 0;
       let unmatched = 0;
+      let vipCount = 0;
+      let o2oCount = 0;
 
       boothElements.forEach((el, boothId) => {
         const boothInfo = boothMap[boothId];
 
-        el.classList.remove("booth-highlighted", "booth-dimmed", "booth-selected", "booth-unmatched");
+        el.classList.remove("booth-highlighted", "booth-dimmed", "booth-selected", "booth-unmatched", "booth-vip", "booth-o2o");
         el.style.cursor = "default";
         el.style.opacity = "";
         el.style.filter = "";
@@ -996,6 +1019,19 @@
           matched++;
           el.style.cursor = "pointer";
           el.style.opacity = "1";
+          
+          // Check VIP and O2O status
+          const isVIP = String(boothInfo["VIP"] || "").toLowerCase() === "yes" || String(boothInfo["VIP"] || "").toLowerCase() === "y";
+          const isO2O = String(boothInfo["O2O"] || "").toLowerCase() === "yes" || String(boothInfo["O2O"] || "").toLowerCase() === "y";
+          
+          if (isVIP) {
+            el.classList.add("booth-vip");
+            vipCount++;
+          }
+          if (isO2O) {
+            el.classList.add("booth-o2o");
+            o2oCount++;
+          }
           
           const newEl = el.cloneNode(true);
           el.parentNode.replaceChild(newEl, el);
@@ -1018,29 +1054,33 @@
         }
       });
 
-      setStatus(`🎯 ${matched} booths ready`, "success");
+      console.log(`VIP: ${vipCount}, O2O: ${o2oCount}`);
+      setStatus(`🎯 ${matched} booths (${vipCount} VIP, ${o2oCount} O2O)`, "success");
       updateStats();
       applyFilters();
     }
 
     // ==================== TOOLTIP ====================
     function showTooltip(evt, boothInfo) {
-      if (isMobile) return; // Don't show tooltip on mobile
+      if (isMobile) return;
       
       const company = boothInfo["Company name"] || "N/A";
       const boothId = boothInfo["Stand_no"] || "";
       const t1 = boothInfo["T1"] || "";
-      const t2 = boothInfo["T2"] || "";
-      const t3 = boothInfo["T3"] || "";
       const products = boothInfo["Exhibited products"] || "";
+      const isVIP = String(boothInfo["VIP"] || "").toLowerCase() === "yes" || String(boothInfo["VIP"] || "").toLowerCase() === "y";
+      const isO2O = String(boothInfo["O2O"] || "").toLowerCase() === "yes" || String(boothInfo["O2O"] || "").toLowerCase() === "y";
+
+      let badges = '';
+      if (isVIP) badges += '<span class="badge badge-vip">⭐ VIP</span> ';
+      if (isO2O) badges += '<span class="badge badge-o2o">🔗 O2O</span>';
 
       tooltip.innerHTML = `
         <div class="font-bold text-base mb-1">${company}</div>
         <div class="text-xs text-gray-300 mb-2">📍 Booth: ${boothId}</div>
+        ${badges ? `<div class="mb-2">${badges}</div>` : ''}
         ${t1 ? `<div class="text-xs text-yellow-200">📂 ${t1}</div>` : ""}
-        ${t2 ? `<div class="text-xs text-yellow-200">└─ ${t2}</div>` : ""}
-        ${t3 ? `<div class="text-xs text-yellow-200">&nbsp;&nbsp;&nbsp;└─ ${t3}</div>` : ""}
-        ${products ? `<div class="text-xs text-green-200 mt-1">🏷️ ${products.substring(0, 50)}${products.length > 50 ? '...' : ''}</div>` : ""}
+        ${products ? `<div class="text-xs text-green-200 mt-1">🏷️ ${products.substring(0, 60)}${products.length > 60 ? '...' : ''}</div>` : ""}
       `;
       tooltip.style.display = "block";
       moveTooltip(evt);
@@ -1091,20 +1131,27 @@
         if (el) el.textContent = titleText;
       });
 
+      const isVIP = String(booth["VIP"] || "").toLowerCase() === "yes" || String(booth["VIP"] || "").toLowerCase() === "y";
+      const isO2O = String(booth["O2O"] || "").toLowerCase() === "yes" || String(booth["O2O"] || "").toLowerCase() === "y";
+
+      let badges = '';
+      if (isVIP) badges += '<span class="badge badge-vip ml-2">⭐ VIP</span>';
+      if (isO2O) badges += '<span class="badge badge-o2o ml-2">🔗 O2O</span>';
+
       const fields = [
         { label: "Booth ID", key: "Stand_no" },
-        { label: "Category (T1)", key: "T1" },
-        { label: "Sub-category (T2)", key: "T2" },
-        { label: "Product Type (T3)", key: "T3" },
-        { label: "Products", key: "Exhibited products" },
+        { label: "Products", key: "Exhibited products", important: true },
+        { label: "Category (T1)", key: "T1", important: true },
+        { label: "Sub-category (T2)", key: "T2", important: true },
+        { label: "Product Type (T3)", key: "T3", important: true },
         { label: "Exhibition Area", key: "Exhibition area" }
       ];
 
-      let html = "";
+      let html = badges ? `<div class="mb-3">${badges}</div>` : "";
       
       fields.forEach(field => {
         const value = booth[field.key] || "-";
-        const isImportant = ["T1", "T2", "T3", "Exhibited products"].includes(field.key);
+        const isImportant = field.important;
         
         if (value !== "-") {
           html += `
@@ -1160,15 +1207,11 @@
       const subCategories = [...new Set(data.map(r => r["T2"]).filter(Boolean))].sort();
       const productTypes = [...new Set(data.map(r => r["T3"]).filter(Boolean))].sort();
       
-      // Populate desktop filters
       populateSelect('filter-t1', categories, 'All Categories');
       populateSelect('filter-t2', subCategories, 'All Sub-categories');
       populateSelect('filter-t3', productTypes, 'All Product Types');
       
-      // Populate mobile filters
       populateSelect('filter-t1-mobile', categories, 'All Categories');
-      populateSelect('filter-t2-mobile', subCategories, 'All');
-      populateSelect('filter-t3-mobile', productTypes, 'All');
     }
     
     function populateSelect(id, options, defaultText) {
@@ -1193,17 +1236,23 @@
         const el = document.getElementById(id);
         return el ? el.value.toLowerCase().trim() : '';
       };
+      
+      const getCheckbox = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.checked : false;
+      };
 
       const filters = {
         company: getFilterValue(isMobile ? 'filter-company-mobile' : 'filter-company'),
         t1: getFilterValue(isMobile ? 'filter-t1-mobile' : 'filter-t1'),
-        t2: getFilterValue(isMobile ? 'filter-t2-mobile' : 'filter-t2'),
-        t3: getFilterValue(isMobile ? 'filter-t3-mobile' : 'filter-t3'),
+        t2: getFilterValue('filter-t2'),
+        t3: getFilterValue('filter-t3'),
         product: getFilterValue('filter-product'),
-        area: getFilterValue('filter-area')
+        vip: getCheckbox(isMobile ? 'filter-vip-mobile' : 'filter-vip'),
+        o2o: getCheckbox(isMobile ? 'filter-o2o-mobile' : 'filter-o2o')
       };
 
-      const hasActiveFilters = Object.values(filters).some(v => v !== "");
+      const hasActiveFilters = filters.company || filters.t1 || filters.t2 || filters.t3 || filters.product || filters.vip || filters.o2o;
       let visibleCount = 0;
 
       boothElements.forEach((el, boothId) => {
@@ -1216,6 +1265,9 @@
         }
 
         let match = true;
+        
+        const isVIP = String(booth["VIP"] || "").toLowerCase() === "yes" || String(booth["VIP"] || "").toLowerCase() === "y";
+        const isO2O = String(booth["O2O"] || "").toLowerCase() === "yes" || String(booth["O2O"] || "").toLowerCase() === "y";
 
         if (hasActiveFilters) {
           if (filters.company && !(booth["Company name"] || "").toLowerCase().includes(filters.company)) match = false;
@@ -1223,7 +1275,8 @@
           if (filters.t2 && !(booth["T2"] || "").toLowerCase().includes(filters.t2)) match = false;
           if (filters.t3 && !(booth["T3"] || "").toLowerCase().includes(filters.t3)) match = false;
           if (filters.product && !(booth["Exhibited products"] || "").toLowerCase().includes(filters.product)) match = false;
-          if (filters.area && !(booth["Exhibition area"] || "").toLowerCase().includes(filters.area)) match = false;
+          if (filters.vip && !isVIP) match = false;
+          if (filters.o2o && !isO2O) match = false;
         }
 
         if (match) {
@@ -1245,7 +1298,7 @@
 
     function resetFilters() {
       const ids = [
-        'filter-company', 'filter-product', 'filter-area', 'quick-search',
+        'filter-company', 'filter-product', 'quick-search',
         'filter-company-mobile', 'quick-search-mobile'
       ];
       ids.forEach(id => {
@@ -1253,9 +1306,14 @@
         if (el) el.value = "";
       });
       
-      ['filter-t1', 'filter-t2', 'filter-t3', 'filter-t1-mobile', 'filter-t2-mobile', 'filter-t3-mobile'].forEach(id => {
+      ['filter-t1', 'filter-t2', 'filter-t3', 'filter-t1-mobile'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = "";
+      });
+      
+      ['filter-vip', 'filter-o2o', 'filter-vip-mobile', 'filter-o2o-mobile'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.checked = false;
       });
       
       if (selectedBoothId && boothElements.has(selectedBoothId)) {
@@ -1310,11 +1368,15 @@
     document.getElementById("zoom-out")?.addEventListener("click", () => zoom(1.2));
     document.getElementById("zoom-reset")?.addEventListener("click", resetZoom);
 
-    ["filter-company", "filter-product", "filter-area", "filter-company-mobile"].forEach(id => {
+    ["filter-company", "filter-product", "filter-company-mobile"].forEach(id => {
       document.getElementById(id)?.addEventListener("input", debouncedFilter);
     });
     
-    ["filter-t1", "filter-t2", "filter-t3", "filter-t1-mobile", "filter-t2-mobile", "filter-t3-mobile"].forEach(id => {
+    ["filter-t1", "filter-t2", "filter-t3", "filter-t1-mobile"].forEach(id => {
+      document.getElementById(id)?.addEventListener("change", applyFilters);
+    });
+    
+    ["filter-vip", "filter-o2o", "filter-vip-mobile", "filter-o2o-mobile"].forEach(id => {
       document.getElementById(id)?.addEventListener("change", applyFilters);
     });
 
@@ -1326,15 +1388,14 @@
       if (e.key === "Enter") quickSearch(e.target.value);
     });
 
-    // Responsive handling
     window.addEventListener('resize', () => {
       isMobile = window.innerWidth <= 768;
     });
 
     // ==================== INITIALIZE ====================
     async function init() {
-      console.log('Initializing Exhibition Navigator...');
-      showLoading('Loading exhibition data...');
+      console.log('🚀 Initializing...');
+      showLoading('Loading exhibition data...', 'Please wait...');
       
       const svgLoaded = await loadSVGFromServer();
       const dataLoaded = await loadDataFromServer();
@@ -1345,13 +1406,12 @@
       } else if (svgLoaded) {
         setStatus('⚠️ Map loaded, data missing', 'warning');
       } else {
-        setStatus('❌ Failed to load', 'warning');
+        setStatus('❌ Failed to load files', 'warning');
       }
       
       hideLoading();
     }
 
-    // Auto-load on page load
     if (CONFIG.autoLoad) {
       init();
     }
