@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
   <title>Exhibition Navigator</title>
   
   <!-- Tailwind CSS -->
@@ -19,11 +19,13 @@
     
     * {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      -webkit-tap-highlight-color: transparent;
     }
     
     body { 
       background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
       min-height: 100vh;
+      overflow-x: hidden;
     }
     
     /* Apple-style glassmorphism */
@@ -55,7 +57,6 @@
       100% { transform: rotate(360deg); }
     }
     
-    /* Smooth fade in */
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
@@ -126,6 +127,7 @@
     #svg-wrapper svg {
       cursor: grab;
       transition: opacity 0.3s ease;
+      touch-action: none;
     }
     
     #svg-wrapper svg:active {
@@ -167,6 +169,7 @@
       font-weight: 500;
       transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      touch-action: manipulation;
     }
     
     .btn-apple:hover {
@@ -188,33 +191,10 @@
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
     }
     
-    /* File upload button */
-    .file-label {
-      display: inline-block;
-      padding: 10px 18px;
-      background: white;
-      border: 1.5px solid rgba(0, 0, 0, 0.1);
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
-      color: #1f2937;
-      transition: all 0.2s ease;
-    }
-    
-    .file-label:hover {
-      background: #f5f5f7;
-      border-color: #374151;
-    }
-    
-    .file-input {
-      display: none;
-    }
-    
     /* Zoom Controls */
     .zoom-controls {
       position: absolute;
-      top: 20px;
+      bottom: 20px;
       right: 20px;
       display: flex;
       flex-direction: column;
@@ -223,8 +203,8 @@
     }
     
     .zoom-btn {
-      width: 44px;
-      height: 44px;
+      width: 50px;
+      height: 50px;
       border: none;
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(20px);
@@ -233,21 +213,17 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
+      font-size: 22px;
       font-weight: 500;
       color: #1d1d1f;
       transition: all 0.2s ease;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-    
-    .zoom-btn:hover {
-      background: white;
-      transform: scale(1.05);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      touch-action: manipulation;
     }
     
     .zoom-btn:active {
-      transform: scale(0.98);
+      transform: scale(0.95);
+      background: #f0f0f0;
     }
     
     /* Info Panel */
@@ -259,6 +235,7 @@
       max-height: 450px;
       overflow-y: auto;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      -webkit-overflow-scrolling: touch;
     }
     
     .info-panel::-webkit-scrollbar {
@@ -292,6 +269,7 @@
       color: #1d1d1f;
       flex: 1;
       font-size: 14px;
+      word-wrap: break-word;
     }
     
     /* Status Badge */
@@ -338,16 +316,40 @@
       margin-bottom: 12px;
     }
     
-    /* Responsive */
-    @media (max-width: 768px) {
-      aside {
-        width: 100%;
-        max-height: 60vh;
-      }
-      
-      main {
-        flex-direction: column;
-      }
+    /* Mobile drawer */
+    .mobile-drawer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      border-radius: 20px 20px 0 0;
+      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+      transform: translateY(calc(100% - 80px));
+      transition: transform 0.3s ease;
+      z-index: 100;
+      max-height: 85vh;
+      display: none;
+    }
+    
+    .mobile-drawer.open {
+      transform: translateY(0);
+    }
+    
+    .drawer-handle {
+      width: 40px;
+      height: 4px;
+      background: #d1d5db;
+      border-radius: 2px;
+      margin: 12px auto;
+      cursor: pointer;
+    }
+    
+    .drawer-content {
+      padding: 0 20px 20px;
+      overflow-y: auto;
+      max-height: calc(85vh - 60px);
+      -webkit-overflow-scrolling: touch;
     }
     
     /* Footer */
@@ -375,46 +377,81 @@
     .footer a:hover {
       text-decoration: underline;
     }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .desktop-sidebar {
+        display: none !important;
+      }
+      
+      .mobile-drawer {
+        display: block;
+      }
+      
+      .footer {
+        display: none;
+      }
+      
+      .info-label {
+        min-width: 100px;
+        font-size: 13px;
+      }
+      
+      .info-value {
+        font-size: 13px;
+      }
+      
+      .zoom-controls {
+        bottom: 100px;
+        right: 15px;
+      }
+      
+      .zoom-btn {
+        width: 45px;
+        height: 45px;
+      }
+    }
+    
+    @media (min-width: 769px) {
+      .desktop-sidebar {
+        display: block !important;
+      }
+    }
   </style>
 </head>
 
 <body>
   <!-- Loading Overlay -->
-  <div id="loading-overlay" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 backdrop-blur-sm">
+  <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 backdrop-blur-sm">
     <div class="glass-dark p-8 rounded-3xl shadow-2xl flex flex-col items-center">
       <div class="spinner"></div>
-      <p class="mt-5 text-gray-700 font-medium" id="loading-text">Loading...</p>
+      <p class="mt-5 text-gray-700 font-medium" id="loading-text">Loading exhibition data...</p>
     </div>
   </div>
 
   <!-- Header -->
   <header class="glass-dark shadow-lg">
-    <div class="max-w-screen-2xl mx-auto px-6 py-5 flex flex-wrap justify-between items-center gap-4">
-      <div>
-        <h1 class="text-2xl font-semibold text-gray-900">🗺️ Exhibition Navigator</h1>
-        <div id="status" class="mt-2">
-          <span class="status-badge status-info">
-            <span class="inline-block w-2 h-2 bg-gray-600 rounded-full"></span>
-            Ready to begin
-          </span>
+    <div class="max-w-screen-2xl mx-auto px-4 md:px-6 py-4 md:py-5">
+      <div class="flex justify-between items-center">
+        <div>
+          <h1 class="text-xl md:text-2xl font-semibold text-gray-900">🗺️ Exhibition Navigator</h1>
+          <div id="status" class="mt-2">
+            <span class="status-badge status-info">
+              <span class="inline-block w-2 h-2 bg-gray-600 rounded-full"></span>
+              Loading...
+            </span>
+          </div>
         </div>
-      </div>
-      <div class="flex gap-3 flex-wrap items-center">
-        <label class="file-label">
-          <span>📄 Choose SVG</span>
-          <input id="svg-upload" type="file" accept=".svg" class="file-input" />
-        </label>
-        <label class="file-label">
-          <span>📊 Choose Data</span>
-          <input id="excel-upload" type="file" accept=".xlsx,.xls,.csv" class="file-input" />
-        </label>
+        <button id="mobile-menu-btn" class="md:hidden btn-apple px-4 py-2">
+          <span class="text-lg">☰</span>
+        </button>
       </div>
     </div>
   </header>
 
-  <main class="flex" style="height: calc(100vh - 180px); margin-top: 1rem;">
-    <!-- Sidebar -->
-    <aside class="w-80 glass ml-4 rounded-2xl shadow-xl overflow-y-auto" style="max-height: calc(100vh - 200px);">
+  <main class="flex h-[calc(100vh-100px)] md:h-[calc(100vh-180px)] mt-2 md:mt-4">
+    <!-- Desktop Sidebar -->
+    <aside class="desktop-sidebar w-80 glass ml-4 rounded-2xl shadow-xl overflow-y-auto" style="max-height: calc(100vh - 200px);">
       <div class="p-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-6">🔍 Search & Filter</h2>
         
@@ -427,13 +464,12 @@
         
         <div class="border-t border-gray-200 my-5"></div>
         
-        <!-- Company Search -->
+        <!-- Filters -->
         <div class="mb-5">
           <label class="section-header">Company Name</label>
           <input id="filter-company" type="text" class="input-apple" placeholder="Search company..." />
         </div>
         
-        <!-- Category (T1) -->
         <div class="mb-5">
           <label class="section-header">Category (T1)</label>
           <select id="filter-t1" class="input-apple">
@@ -441,7 +477,6 @@
           </select>
         </div>
         
-        <!-- Sub-category (T2) -->
         <div class="mb-5">
           <label class="section-header">Sub-category (T2)</label>
           <select id="filter-t2" class="input-apple">
@@ -449,7 +484,6 @@
           </select>
         </div>
         
-        <!-- Product Type (T3) -->
         <div class="mb-5">
           <label class="section-header">Product Type (T3)</label>
           <select id="filter-t3" class="input-apple">
@@ -457,19 +491,16 @@
           </select>
         </div>
         
-        <!-- Products -->
         <div class="mb-5">
           <label class="section-header">Products</label>
           <input id="filter-product" type="text" class="input-apple" placeholder="Search products..." />
         </div>
         
-        <!-- Exhibition Area -->
         <div class="mb-5">
           <label class="section-header">Exhibition Area</label>
           <input id="filter-area" type="text" class="input-apple" placeholder="e.g., Homelife" />
         </div>
         
-        <!-- Buttons -->
         <div class="flex gap-3 mb-5">
           <button id="reset-filters" class="btn-apple btn-secondary flex-1">Reset All</button>
           <button id="reset-zoom" class="btn-apple flex-1">Reset View</button>
@@ -484,19 +515,73 @@
         <!-- Stats -->
         <div class="stats-card mt-5">
           <p class="section-header mb-2">📊 Statistics</p>
-          <p id="stats" class="text-sm font-medium text-gray-700">No data loaded</p>
+          <p id="stats" class="text-sm font-medium text-gray-700">Loading data...</p>
         </div>
       </div>
     </aside>
 
+    <!-- Mobile Drawer -->
+    <div class="mobile-drawer" id="mobile-drawer">
+      <div class="drawer-handle" id="drawer-handle"></div>
+      <div class="drawer-content">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">🔍 Search & Filter</h2>
+        
+        <div class="mb-4">
+          <label class="section-header">Quick Find Booth</label>
+          <input id="quick-search-mobile" type="text" class="input-apple" placeholder="e.g., B2H212" />
+        </div>
+        
+        <div class="mb-4">
+          <label class="section-header">Company Name</label>
+          <input id="filter-company-mobile" type="text" class="input-apple" placeholder="Search..." />
+        </div>
+        
+        <div class="mb-4">
+          <label class="section-header">Category (T1)</label>
+          <select id="filter-t1-mobile" class="input-apple">
+            <option value="">All Categories</option>
+          </select>
+        </div>
+        
+        <div class="mb-4">
+          <label class="section-header">Sub-category (T2)</label>
+          <select id="filter-t2-mobile" class="input-apple">
+            <option value="">All</option>
+          </select>
+        </div>
+        
+        <div class="mb-4">
+          <label class="section-header">Product Type (T3)</label>
+          <select id="filter-t3-mobile" class="input-apple">
+            <option value="">All</option>
+          </select>
+        </div>
+        
+        <div class="flex gap-3 mb-4">
+          <button id="reset-filters-mobile" class="btn-apple btn-secondary flex-1">Reset</button>
+          <button id="reset-zoom-mobile" class="btn-apple flex-1">Reset View</button>
+        </div>
+        
+        <!-- Mobile Info Panel -->
+        <div id="info-panel-mobile" class="info-panel hidden">
+          <h3 id="info-title-mobile" class="text-lg font-semibold text-gray-900 mb-3">Booth Info</h3>
+          <div id="info-content-mobile"></div>
+        </div>
+        
+        <div class="stats-card mt-4 mb-20">
+          <p class="section-header mb-2">📊 Statistics</p>
+          <p id="stats-mobile" class="text-sm font-medium text-gray-700">Loading...</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Map Container -->
-    <section id="map-container" class="flex-1 relative mx-4">
+    <section id="map-container" class="flex-1 relative mx-2 md:mx-4">
       <div class="glass-dark rounded-2xl shadow-xl h-full overflow-hidden relative">
         <div id="svg-wrapper" class="absolute inset-0 flex justify-center items-center">
-          <div class="text-center">
-            <div class="text-6xl mb-4">🗺️</div>
-            <p class="text-gray-600 text-lg font-medium">Upload SVG floor plan to begin</p>
-            <p class="text-gray-400 text-sm mt-2">Supports pan, zoom, and interactive booths</p>
+          <div class="text-center px-4">
+            <div class="text-4xl md:text-6xl mb-4">🗺️</div>
+            <p class="text-gray-600 text-base md:text-lg font-medium">Loading exhibition map...</p>
           </div>
         </div>
         
@@ -504,7 +589,7 @@
         <div class="zoom-controls hidden" id="zoom-controls">
           <button class="zoom-btn" id="zoom-in" title="Zoom In">+</button>
           <button class="zoom-btn" id="zoom-out" title="Zoom Out">−</button>
-          <button class="zoom-btn" id="zoom-reset" title="Reset View" style="font-size: 16px;">⟲</button>
+          <button class="zoom-btn" id="zoom-reset" title="Reset View" style="font-size: 18px;">⟲</button>
         </div>
         
         <!-- Tooltip -->
@@ -513,13 +598,21 @@
     </section>
   </main>
 
-  <!-- Footer -->
+  <!-- Footer (Desktop only) -->
   <div class="footer">
     Made with ❤️ by <strong>Your Team</strong> | Powered by Claude AI
   </div>
 
   <script>
-    console.log('Exhibition Navigator v1.0 - Initializing...');
+    console.log('Exhibition Navigator v2.0 - Mobile Optimized');
+    
+    // ==================== CONFIGURATION ====================
+    // 📁 Admin: Place your files in the same directory as this HTML
+    const CONFIG = {
+      svgFile: 'map.svg',        // Your SVG filename
+      dataFile: 'data.csv',      // Your CSV/Excel filename
+      autoLoad: true              // Auto-load on page load
+    };
     
     // ==================== STATE ====================
     let svgElement = null;
@@ -528,22 +621,22 @@
     let boothElements = new Map();
     let selectedBoothId = null;
     let filterTimeout = null;
+    let isMobile = window.innerWidth <= 768;
     
     // Pan & Zoom state
     let viewBox = { x: 0, y: 0, width: 1000, height: 1000 };
     let isPanning = false;
     let startPoint = { x: 0, y: 0 };
     let scale = 1;
+    let touchStartDistance = 0;
 
     // ==================== DOM ELEMENTS ====================
     const tooltip = document.getElementById("tooltip");
     const loadingOverlay = document.getElementById("loading-overlay");
     const loadingText = document.getElementById("loading-text");
     const statusEl = document.getElementById("status");
-    const infoPanel = document.getElementById("info-panel");
-    const infoTitle = document.getElementById("info-title");
-    const infoContent = document.getElementById("info-content");
-    const statsEl = document.getElementById("stats");
+    const mobileDrawer = document.getElementById("mobile-drawer");
+    const drawerHandle = document.getElementById("drawer-handle");
 
     // ==================== UTILITY FUNCTIONS ====================
     function setStatus(msg, type = "info") {
@@ -574,6 +667,27 @@
       };
     }
 
+    // ==================== MOBILE DRAWER ====================
+    let drawerOpen = false;
+    
+    drawerHandle.addEventListener('click', toggleDrawer);
+    drawerHandle.addEventListener('touchstart', toggleDrawer);
+    
+    document.getElementById('mobile-menu-btn').addEventListener('click', () => {
+      drawerOpen = true;
+      mobileDrawer.classList.add('open');
+    });
+    
+    function toggleDrawer(e) {
+      e.preventDefault();
+      drawerOpen = !drawerOpen;
+      if (drawerOpen) {
+        mobileDrawer.classList.add('open');
+      } else {
+        mobileDrawer.classList.remove('open');
+      }
+    }
+
     // ==================== PAN & ZOOM ====================
     function initPanZoom() {
       if (!svgElement) return;
@@ -588,6 +702,7 @@
         svgElement.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
       }
       
+      // Mouse/trackpad events
       svgElement.addEventListener("wheel", (e) => {
         e.preventDefault();
         const delta = e.deltaY > 0 ? 1.1 : 0.9;
@@ -599,6 +714,7 @@
       svgElement.addEventListener("mouseup", endPan);
       svgElement.addEventListener("mouseleave", endPan);
       
+      // Touch events
       svgElement.addEventListener("touchstart", handleTouchStart, { passive: false });
       svgElement.addEventListener("touchmove", handleTouchMove, { passive: false });
       svgElement.addEventListener("touchend", endPan);
@@ -626,7 +742,6 @@
       
       viewBox.width = newWidth;
       viewBox.height = newHeight;
-      scale = 1 / factor;
       
       updateViewBox();
     }
@@ -665,25 +780,55 @@
         e.preventDefault();
         isPanning = true;
         startPoint = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      } else if (e.touches.length === 2) {
+        e.preventDefault();
+    function handleTouchStart(e) {
+      if (e.touches.length === 1) {
+        e.preventDefault();
+        isPanning = true;
+        startPoint = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      } else if (e.touches.length === 2) {
+        e.preventDefault();
+        isPanning = false;
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        touchStartDistance = Math.hypot(
+          touch2.clientX - touch1.clientX,
+          touch2.clientY - touch1.clientY
+        );
       }
     }
     
     function handleTouchMove(e) {
-      if (!isPanning || e.touches.length !== 1) return;
-      e.preventDefault();
-      
-      const dx = e.touches[0].clientX - startPoint.x;
-      const dy = e.touches[0].clientY - startPoint.y;
-      
-      const rect = svgElement.getBoundingClientRect();
-      const scaleX = viewBox.width / rect.width;
-      const scaleY = viewBox.height / rect.height;
-      
-      viewBox.x -= dx * scaleX;
-      viewBox.y -= dy * scaleY;
-      
-      startPoint = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      updateViewBox();
+      if (e.touches.length === 1 && isPanning) {
+        e.preventDefault();
+        
+        const dx = e.touches[0].clientX - startPoint.x;
+        const dy = e.touches[0].clientY - startPoint.y;
+        
+        const rect = svgElement.getBoundingClientRect();
+        const scaleX = viewBox.width / rect.width;
+        const scaleY = viewBox.height / rect.height;
+        
+        viewBox.x -= dx * scaleX;
+        viewBox.y -= dy * scaleY;
+        
+        startPoint = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        updateViewBox();
+      } else if (e.touches.length === 2) {
+        e.preventDefault();
+        
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        const currentDistance = Math.hypot(
+          touch2.clientX - touch1.clientX,
+          touch2.clientY - touch1.clientY
+        );
+        
+        const factor = touchStartDistance / currentDistance;
+        zoom(factor);
+        touchStartDistance = currentDistance;
+      }
     }
     
     function updateViewBox() {
@@ -700,7 +845,6 @@
         width: bbox.width, 
         height: bbox.height 
       };
-      scale = 1;
       
       updateViewBox();
       
@@ -708,23 +852,17 @@
       svgElement.style.opacity = "1";
     }
 
-    // ==================== SVG UPLOAD ====================
-    async function handleSVGUpload(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      console.log('SVG Upload started:', file.name);
-      showLoading(`Loading ${file.name}...`);
-      setStatus(`Loading SVG: ${file.name}`, "info");
-
+    // ==================== AUTO LOAD FILES ====================
+    async function loadSVGFromServer() {
       try {
-        const text = await file.text();
+        const response = await fetch(CONFIG.svgFile);
+        if (!response.ok) throw new Error(`SVG not found: ${CONFIG.svgFile}`);
+        
+        const text = await response.text();
         document.getElementById("svg-wrapper").innerHTML = text;
 
         svgElement = document.querySelector("#svg-wrapper svg");
-        if (!svgElement) {
-          throw new Error("Invalid SVG file");
-        }
+        if (!svgElement) throw new Error("Invalid SVG file");
 
         svgElement.style.width = "100%";
         svgElement.style.height = "100%";
@@ -733,16 +871,54 @@
         initPanZoom();
         cacheBoothElements();
 
-        setStatus(`✅ SVG loaded (${boothElements.size} elements)`, "success");
-        
-        if (Object.keys(boothMap).length > 0) {
-          bindBooths();
-        }
+        console.log(`✅ SVG loaded: ${boothElements.size} elements`);
+        return true;
       } catch (error) {
-        setStatus(`❌ Error loading SVG: ${error.message}`, "warning");
-        console.error('SVG Error:', error);
-      } finally {
-        hideLoading();
+        console.error('SVG Load Error:', error);
+        document.getElementById("svg-wrapper").innerHTML = `
+          <div class="text-center px-4">
+            <div class="text-4xl mb-4">⚠️</div>
+            <p class="text-red-600 font-medium">Failed to load map</p>
+            <p class="text-sm text-gray-500 mt-2">Admin: Upload "${CONFIG.svgFile}" to server</p>
+          </div>
+        `;
+        return false;
+      }
+    }
+
+    async function loadDataFromServer() {
+      try {
+        const response = await fetch(CONFIG.dataFile);
+        if (!response.ok) throw new Error(`Data file not found: ${CONFIG.dataFile}`);
+        
+        let jsonData;
+        
+        if (CONFIG.dataFile.endsWith('.csv')) {
+          const text = await response.text();
+          const parsed = Papa.parse(text, {
+            header: true,
+            delimiter: ";",
+            skipEmptyLines: true,
+            encoding: "UTF-8"
+          });
+          jsonData = parsed.data;
+        } else {
+          const data = await response.arrayBuffer();
+          const workbook = XLSX.read(data, { type: "array" });
+          const sheetName = workbook.SheetNames[0];
+          jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+        }
+
+        boothData = jsonData;
+        buildBoothMap(jsonData);
+        populateFilters(jsonData);
+        
+        console.log(`✅ Data loaded: ${jsonData.length} exhibitors`);
+        return true;
+      } catch (error) {
+        console.error('Data Load Error:', error);
+        setStatus(`⚠️ Data file not found`, "warning");
+        return false;
       }
     }
 
@@ -750,20 +926,16 @@
       boothElements.clear();
       
       const elementsWithIds = svgElement.querySelectorAll("[id]");
-      console.log(`Found ${elementsWithIds.length} elements with ID attributes`);
-      
       elementsWithIds.forEach(el => {
         const id = el.id.trim();
         if (id) {
-          const upperID = id.toUpperCase();
-          boothElements.set(upperID, el);
+          boothElements.set(id.toUpperCase(), el);
         }
       });
       
       const textElements = svgElement.querySelectorAll("text, tspan");
-      console.log(`Found ${textElements.length} text elements`);
-      
       let textBoothCount = 0;
+      
       textElements.forEach(el => {
         const textContent = el.textContent.trim();
         const boothPattern = /^[A-Z0-9]{2,}[A-Z][0-9]{2,}$/i;
@@ -789,55 +961,7 @@
         }
       });
       
-      console.log(`Cached ${boothElements.size} total booth elements (${textBoothCount} from text content)`);
-    }
-
-    // ==================== EXCEL/CSV UPLOAD ====================
-    async function handleExcelUpload(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      console.log('Excel Upload started:', file.name);
-      showLoading(`Reading ${file.name}...`);
-      setStatus(`Loading data: ${file.name}`, "info");
-
-      try {
-        let jsonData;
-
-        if (file.name.endsWith('.csv')) {
-          const text = await file.text();
-          const parsed = Papa.parse(text, {
-            header: true,
-            delimiter: ";",
-            skipEmptyLines: true,
-            encoding: "UTF-8"
-          });
-          jsonData = parsed.data;
-          console.log('CSV parsed:', jsonData.length, 'rows');
-        } else {
-          const data = await file.arrayBuffer();
-          const workbook = XLSX.read(data, { type: "array" });
-          const sheetName = workbook.SheetNames[0];
-          jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-          console.log('Excel parsed:', jsonData.length, 'rows');
-        }
-
-        boothData = jsonData;
-        buildBoothMap(jsonData);
-        populateFilters(jsonData);
-        
-        setStatus(`✅ Data loaded (${jsonData.length} exhibitors)`, "success");
-        updateStats();
-
-        if (svgElement) {
-          bindBooths();
-        }
-      } catch (error) {
-        setStatus(`❌ Error loading data: ${error.message}`, "warning");
-        console.error('Excel Error:', error);
-      } finally {
-        hideLoading();
-      }
+      console.log(`Cached ${boothElements.size} booths (${textBoothCount} from text)`);
     }
 
     function buildBoothMap(data) {
@@ -848,17 +972,15 @@
           boothMap[boothId] = row;
         }
       });
-      console.log(`Built booth map with ${Object.keys(boothMap).length} entries`);
     }
 
     // ==================== BOOTH BINDING ====================
     function bindBooths() {
       if (!svgElement || !Object.keys(boothMap).length) {
-        setStatus("⚠️ Upload both SVG and data files", "warning");
+        setStatus("⚠️ Missing data", "warning");
         return;
       }
 
-      console.log('Binding booths...');
       let matched = 0;
       let unmatched = 0;
 
@@ -869,7 +991,6 @@
         el.style.cursor = "default";
         el.style.opacity = "";
         el.style.filter = "";
-        el.style.display = "";
 
         if (boothInfo) {
           matched++;
@@ -887,25 +1008,25 @@
             e.stopPropagation();
             selectBooth(boothId, boothInfo);
           });
+          newEl.addEventListener("touchend", (e) => {
+            e.preventDefault();
+            selectBooth(boothId, boothInfo);
+          });
         } else {
           unmatched++;
           el.classList.add("booth-unmatched");
         }
       });
 
-      console.log(`Binding complete: ${matched} matched, ${unmatched} unmatched`);
-      setStatus(`🎯 ${matched} booths linked, ${unmatched} unmatched`, "success");
-      
-      if (svgElement) {
-        svgElement.style.display = "block";
-        svgElement.style.opacity = "1";
-      }
-      
+      setStatus(`🎯 ${matched} booths ready`, "success");
+      updateStats();
       applyFilters();
     }
 
     // ==================== TOOLTIP ====================
     function showTooltip(evt, boothInfo) {
+      if (isMobile) return; // Don't show tooltip on mobile
+      
       const company = boothInfo["Company name"] || "N/A";
       const boothId = boothInfo["Stand_no"] || "";
       const t1 = boothInfo["T1"] || "";
@@ -939,7 +1060,6 @@
       if (selectedBoothId && boothElements.has(selectedBoothId)) {
         const prevEl = boothElements.get(selectedBoothId);
         prevEl.classList.remove("booth-selected");
-        prevEl.style.opacity = "";
       }
 
       selectedBoothId = boothId;
@@ -947,16 +1067,29 @@
       if (el) {
         el.classList.add("booth-selected");
         el.style.opacity = "1";
-        el.style.display = "block";
       }
 
       displayBoothInfo(boothInfo);
       setTimeout(() => zoomToBooth(boothId), 100);
+      
+      if (isMobile) {
+        mobileDrawer.classList.add('open');
+        drawerOpen = true;
+      }
     }
 
     function displayBoothInfo(booth) {
-      infoPanel.classList.remove("hidden");
-      infoTitle.textContent = booth["Company name"] || "Exhibitor Details";
+      const infoPanels = ['info-panel', 'info-panel-mobile'];
+      const titles = ['info-title', 'info-title-mobile'];
+      const contents = ['info-content', 'info-content-mobile'];
+      
+      infoPanels.forEach(id => document.getElementById(id)?.classList.remove('hidden'));
+      
+      const titleText = booth["Company name"] || "Exhibitor Details";
+      titles.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = titleText;
+      });
 
       const fields = [
         { label: "Booth ID", key: "Stand_no" },
@@ -985,18 +1118,19 @@
 
       if (booth["International station link"]) {
         html += `
-          <div class="info-row mt-3">
-            <div class="info-value" style="width: 100%;">
-              <a href="${booth["International station link"]}" target="_blank" 
-                 class="inline-block w-full text-center bg-gray-800 hover:bg-gray-900 text-white py-2 px-4 rounded-lg transition-colors text-sm font-medium">
-                🌐 Visit Company Website →
-              </a>
-            </div>
+          <div class="mt-3">
+            <a href="${booth["International station link"]}" target="_blank" 
+               class="inline-block w-full text-center bg-gray-800 hover:bg-gray-900 text-white py-3 px-4 rounded-lg transition-colors text-sm font-medium">
+              🌐 Visit Company Website →
+            </a>
           </div>
         `;
       }
 
-      infoContent.innerHTML = html;
+      contents.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = html;
+      });
     }
 
     function zoomToBooth(boothId) {
@@ -1015,51 +1149,39 @@
         viewBox.height = targetHeight;
         
         updateViewBox();
-        
-        svgElement.style.display = 'block';
-        svgElement.style.opacity = '1';
       } catch (error) {
-        console.error('Error zooming to booth:', error);
-        if (svgElement) {
-          svgElement.style.display = 'block';
-          svgElement.style.opacity = '1';
-        }
+        console.error('Zoom error:', error);
       }
     }
 
     // ==================== FILTERS ====================
     function populateFilters(data) {
       const categories = [...new Set(data.map(r => r["T1"]).filter(Boolean))].sort();
-      const t1Select = document.getElementById("filter-t1");
-      t1Select.innerHTML = '<option value="">All Categories</option>';
-      categories.forEach(cat => {
-        const option = document.createElement("option");
-        option.value = cat;
-        option.textContent = cat;
-        t1Select.appendChild(option);
-      });
-      
       const subCategories = [...new Set(data.map(r => r["T2"]).filter(Boolean))].sort();
-      const t2Select = document.getElementById("filter-t2");
-      t2Select.innerHTML = '<option value="">All Sub-categories</option>';
-      subCategories.forEach(cat => {
-        const option = document.createElement("option");
-        option.value = cat;
-        option.textContent = cat;
-        t2Select.appendChild(option);
-      });
-      
       const productTypes = [...new Set(data.map(r => r["T3"]).filter(Boolean))].sort();
-      const t3Select = document.getElementById("filter-t3");
-      t3Select.innerHTML = '<option value="">All Product Types</option>';
-      productTypes.forEach(cat => {
-        const option = document.createElement("option");
-        option.value = cat;
-        option.textContent = cat;
-        t3Select.appendChild(option);
-      });
       
-      console.log('Filters populated');
+      // Populate desktop filters
+      populateSelect('filter-t1', categories, 'All Categories');
+      populateSelect('filter-t2', subCategories, 'All Sub-categories');
+      populateSelect('filter-t3', productTypes, 'All Product Types');
+      
+      // Populate mobile filters
+      populateSelect('filter-t1-mobile', categories, 'All Categories');
+      populateSelect('filter-t2-mobile', subCategories, 'All');
+      populateSelect('filter-t3-mobile', productTypes, 'All');
+    }
+    
+    function populateSelect(id, options, defaultText) {
+      const select = document.getElementById(id);
+      if (!select) return;
+      
+      select.innerHTML = `<option value="">${defaultText}</option>`;
+      options.forEach(opt => {
+        const option = document.createElement("option");
+        option.value = opt;
+        option.textContent = opt;
+        select.appendChild(option);
+      });
     }
 
     const debouncedFilter = debounce(applyFilters, 300);
@@ -1067,13 +1189,18 @@
     function applyFilters() {
       if (!svgElement || !Object.keys(boothMap).length) return;
 
+      const getFilterValue = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.value.toLowerCase().trim() : '';
+      };
+
       const filters = {
-        company: document.getElementById("filter-company").value.toLowerCase().trim(),
-        t1: document.getElementById("filter-t1").value.toLowerCase().trim(),
-        t2: document.getElementById("filter-t2").value.toLowerCase().trim(),
-        t3: document.getElementById("filter-t3").value.toLowerCase().trim(),
-        product: document.getElementById("filter-product").value.toLowerCase().trim(),
-        area: document.getElementById("filter-area").value.toLowerCase().trim()
+        company: getFilterValue(isMobile ? 'filter-company-mobile' : 'filter-company'),
+        t1: getFilterValue(isMobile ? 'filter-t1-mobile' : 'filter-t1'),
+        t2: getFilterValue(isMobile ? 'filter-t2-mobile' : 'filter-t2'),
+        t3: getFilterValue(isMobile ? 'filter-t3-mobile' : 'filter-t3'),
+        product: getFilterValue('filter-product'),
+        area: getFilterValue('filter-area')
       };
 
       const hasActiveFilters = Object.values(filters).some(v => v !== "");
@@ -1091,24 +1218,12 @@
         let match = true;
 
         if (hasActiveFilters) {
-          if (filters.company && !(booth["Company name"] || "").toLowerCase().includes(filters.company)) {
-            match = false;
-          }
-          if (filters.t1 && !(booth["T1"] || "").toLowerCase().includes(filters.t1)) {
-            match = false;
-          }
-          if (filters.t2 && !(booth["T2"] || "").toLowerCase().includes(filters.t2)) {
-            match = false;
-          }
-          if (filters.t3 && !(booth["T3"] || "").toLowerCase().includes(filters.t3)) {
-            match = false;
-          }
-          if (filters.product && !(booth["Exhibited products"] || "").toLowerCase().includes(filters.product)) {
-            match = false;
-          }
-          if (filters.area && !(booth["Exhibition area"] || "").toLowerCase().includes(filters.area)) {
-            match = false;
-          }
+          if (filters.company && !(booth["Company name"] || "").toLowerCase().includes(filters.company)) match = false;
+          if (filters.t1 && !(booth["T1"] || "").toLowerCase().includes(filters.t1)) match = false;
+          if (filters.t2 && !(booth["T2"] || "").toLowerCase().includes(filters.t2)) match = false;
+          if (filters.t3 && !(booth["T3"] || "").toLowerCase().includes(filters.t3)) match = false;
+          if (filters.product && !(booth["Exhibited products"] || "").toLowerCase().includes(filters.product)) match = false;
+          if (filters.area && !(booth["Exhibition area"] || "").toLowerCase().includes(filters.area)) match = false;
         }
 
         if (match) {
@@ -1129,16 +1244,28 @@
     }
 
     function resetFilters() {
-      document.querySelectorAll("#filter-company, #filter-product, #filter-area, #quick-search").forEach(el => el.value = "");
-      document.getElementById("filter-t1").value = "";
-      document.getElementById("filter-t2").value = "";
-      document.getElementById("filter-t3").value = "";
+      const ids = [
+        'filter-company', 'filter-product', 'filter-area', 'quick-search',
+        'filter-company-mobile', 'quick-search-mobile'
+      ];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+      });
+      
+      ['filter-t1', 'filter-t2', 'filter-t3', 'filter-t1-mobile', 'filter-t2-mobile', 'filter-t3-mobile'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+      });
       
       if (selectedBoothId && boothElements.has(selectedBoothId)) {
         boothElements.get(selectedBoothId).classList.remove("booth-selected");
       }
       selectedBoothId = null;
-      infoPanel.classList.add("hidden");
+      
+      ['info-panel', 'info-panel-mobile'].forEach(id => {
+        document.getElementById(id)?.classList.add('hidden');
+      });
       
       applyFilters();
     }
@@ -1147,11 +1274,14 @@
       const total = Object.keys(boothMap).length;
       const svgBooths = boothElements.size;
       
-      if (visible !== null) {
-        statsEl.textContent = `${visible} of ${total} exhibitors visible`;
-      } else {
-        statsEl.textContent = `${total} exhibitors | ${svgBooths} booths in SVG`;
-      }
+      const text = visible !== null 
+        ? `${visible} of ${total} exhibitors visible`
+        : `${total} exhibitors | ${svgBooths} booths`;
+      
+      const statsEl = document.getElementById('stats');
+      const statsMobileEl = document.getElementById('stats-mobile');
+      if (statsEl) statsEl.textContent = text;
+      if (statsMobileEl) statsMobileEl.textContent = text;
     }
 
     // ==================== QUICK SEARCH ====================
@@ -1161,105 +1291,70 @@
 
       if (boothElements.has(query)) {
         const booth = boothMap[query];
-        
         if (booth) {
           selectBooth(query, booth);
-          setStatus(`✅ Found booth: ${query}`, "success");
-        } else {
-          zoomToBoothWithoutData(query);
-          setStatus(`📍 Booth ${query} found (no exhibitor data)`, "info");
+          setStatus(`✅ Found: ${query}`, "success");
         }
       } else {
-        const normalized = query.replace(/[\s\-_]/g, '');
-        let found = false;
-        
-        for (const [boothId, element] of boothElements) {
-          const normalizedId = boothId.replace(/[\s\-_]/g, '');
-          if (normalizedId === normalized) {
-            const booth = boothMap[boothId];
-            if (booth) {
-              selectBooth(boothId, booth);
-              setStatus(`✅ Found booth: ${boothId}`, "success");
-            } else {
-              zoomToBoothWithoutData(boothId);
-              setStatus(`📍 Booth ${boothId} found (no exhibitor data)`, "info");
-            }
-            found = true;
-            break;
-          }
-        }
-        
-        if (!found) {
-          setStatus(`❌ Booth not found: ${query}`, "warning");
-        }
+        setStatus(`❌ Not found: ${query}`, "warning");
       }
-    }
-    
-    function zoomToBoothWithoutData(boothId) {
-      if (selectedBoothId && boothElements.has(selectedBoothId)) {
-        boothElements.get(selectedBoothId).classList.remove("booth-selected");
-      }
-
-      selectedBoothId = boothId;
-      const el = boothElements.get(boothId);
-      el.classList.add("booth-selected");
-
-      infoPanel.classList.remove("hidden");
-      infoTitle.textContent = `Booth ${boothId}`;
-      infoContent.innerHTML = `
-        <div class="info-row">
-          <div class="info-label">Status:</div>
-          <div class="info-value">No exhibitor data available</div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">Booth ID:</div>
-          <div class="info-value"><strong>${boothId}</strong></div>
-        </div>
-        <div class="mt-3 text-sm text-gray-500">
-          This booth exists in the floor plan but has no corresponding exhibitor information in the uploaded data file.
-        </div>
-      `;
-
-      zoomToBooth(boothId);
     }
 
     // ==================== EVENT LISTENERS ====================
-    document.getElementById("svg-upload").addEventListener("change", handleSVGUpload);
-    document.getElementById("excel-upload").addEventListener("change", handleExcelUpload);
-    document.getElementById("reset-filters").addEventListener("click", resetFilters);
-    document.getElementById("reset-zoom").addEventListener("click", resetZoom);
+    document.getElementById("reset-filters")?.addEventListener("click", resetFilters);
+    document.getElementById("reset-filters-mobile")?.addEventListener("click", resetFilters);
+    document.getElementById("reset-zoom")?.addEventListener("click", resetZoom);
+    document.getElementById("reset-zoom-mobile")?.addEventListener("click", resetZoom);
     
-    document.getElementById("zoom-in").addEventListener("click", () => zoom(0.8));
-    document.getElementById("zoom-out").addEventListener("click", () => zoom(1.2));
-    document.getElementById("zoom-reset").addEventListener("click", resetZoom);
+    document.getElementById("zoom-in")?.addEventListener("click", () => zoom(0.8));
+    document.getElementById("zoom-out")?.addEventListener("click", () => zoom(1.2));
+    document.getElementById("zoom-reset")?.addEventListener("click", resetZoom);
 
-    ["filter-company", "filter-product", "filter-area"].forEach(id => {
-      document.getElementById(id).addEventListener("input", debouncedFilter);
+    ["filter-company", "filter-product", "filter-area", "filter-company-mobile"].forEach(id => {
+      document.getElementById(id)?.addEventListener("input", debouncedFilter);
     });
     
-    document.getElementById("filter-t1").addEventListener("change", applyFilters);
-    document.getElementById("filter-t2").addEventListener("change", applyFilters);
-    document.getElementById("filter-t3").addEventListener("change", applyFilters);
-
-    document.getElementById("quick-search").addEventListener("keypress", (e) => {
-      if (e.key === "Enter") {
-        quickSearch(e.target.value);
-      }
+    ["filter-t1", "filter-t2", "filter-t3", "filter-t1-mobile", "filter-t2-mobile", "filter-t3-mobile"].forEach(id => {
+      document.getElementById(id)?.addEventListener("change", applyFilters);
     });
 
-    document.addEventListener("keydown", (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
-        e.preventDefault();
-        document.getElementById("quick-search").focus();
-      }
-      if (e.key === "Escape") {
-        resetFilters();
-      }
+    document.getElementById("quick-search")?.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") quickSearch(e.target.value);
+    });
+    
+    document.getElementById("quick-search-mobile")?.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") quickSearch(e.target.value);
     });
 
-    // Initialize
-    console.log('Exhibition Navigator ready!');
-    setStatus("Ready to begin", "info");
+    // Responsive handling
+    window.addEventListener('resize', () => {
+      isMobile = window.innerWidth <= 768;
+    });
+
+    // ==================== INITIALIZE ====================
+    async function init() {
+      console.log('Initializing Exhibition Navigator...');
+      showLoading('Loading exhibition data...');
+      
+      const svgLoaded = await loadSVGFromServer();
+      const dataLoaded = await loadDataFromServer();
+      
+      if (svgLoaded && dataLoaded) {
+        bindBooths();
+        setStatus('✅ Exhibition ready', 'success');
+      } else if (svgLoaded) {
+        setStatus('⚠️ Map loaded, data missing', 'warning');
+      } else {
+        setStatus('❌ Failed to load', 'warning');
+      }
+      
+      hideLoading();
+    }
+
+    // Auto-load on page load
+    if (CONFIG.autoLoad) {
+      init();
+    }
   </script>
 </body>
 </html>
