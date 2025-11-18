@@ -1,1581 +1,368 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-  <title>Exhibition Navigator</title>
-  
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-  
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Exhibition Navigator — Map</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    
-    * {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      -webkit-tap-highlight-color: transparent;
-    }
-    
-    body { 
-      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
-    
-    .glass {
-      background: rgba(255, 255, 255, 0.85);
-      backdrop-filter: blur(20px) saturate(180%);
-      -webkit-backdrop-filter: blur(20px) saturate(180%);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-    }
-    
-    .glass-dark {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(30px) saturate(200%);
-      -webkit-backdrop-filter: blur(30px) saturate(200%);
-    }
-    
-    .spinner {
-      border: 3px solid rgba(0, 0, 0, 0.1);
-      border-top: 3px solid #374151;
-      border-radius: 50%;
-      width: 50px;
-      height: 50px;
-      animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-    }
-    
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .fade-in { animation: fadeIn 0.4s ease-out; }
-    
-    .tooltip {
-      position: fixed;
-      background: rgba(0, 0, 0, 0.92);
-      color: white;
-      padding: 14px 18px;
-      border-radius: 12px;
-      font-size: 13px;
-      pointer-events: none;
-      z-index: 1000;
-      display: none;
-      max-width: 340px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    /* Booth badges */
-    .booth-vip {
-      filter: drop-shadow(0 0 20px #fbbf24) brightness(1.6) !important;
-      stroke: #fbbf24 !important;
-      stroke-width: 14px !important;
-    }
-    
-    .booth-o2o {
-      filter: drop-shadow(0 0 16px #10b981) brightness(1.4) !important;
-      stroke: #10b981 !important;
-      stroke-width: 10px !important;
-    }
-    
-    .booth-highlighted {
-      filter: drop-shadow(0 0 14px #06b6d4) brightness(1.3) !important;
-      stroke: #06b6d4 !important;
-      stroke-width: 8px !important;
-      opacity: 1 !important;
-      fill: rgba(34, 211, 238, 0.25) !important;
-    }
-    
-    .booth-selected {
-      filter: drop-shadow(0 0 28px #f59e0b) brightness(1.5) !important;
-      stroke: #f59e0b !important;
-      stroke-width: 12px !important;
-      animation: pulse 1.5s ease-in-out infinite;
-      opacity: 1 !important;
-      fill: rgba(251, 191, 36, 0.35) !important;
-    }
-    
-    .booth-dimmed {
-      opacity: 0.06 !important;
-      filter: grayscale(1) blur(0.5px);
-      pointer-events: none;
-    }
-    
-    .booth-unmatched {
-      opacity: 0.18 !important;
-      filter: grayscale(1);
-    }
-    
-    @keyframes pulse {
-      0%, 100% { 
-        filter: drop-shadow(0 0 28px #f59e0b) brightness(1.5);
-        stroke-width: 12px;
-      }
-      50% { 
-        filter: drop-shadow(0 0 44px #f59e0b) brightness(1.7);
-        stroke-width: 16px;
-      }
-    }
-    
-    /* Badge styles */
-    .badge {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    
-    .badge-vip {
-      background: linear-gradient(135deg, #fbbf24, #f59e0b);
-      color: white;
-      box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
-    }
-    
-    .badge-o2o {
-      background: linear-gradient(135deg, #10b981, #059669);
-      color: white;
-      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
-    }
-    
-    #svg-wrapper svg {
-      cursor: grab;
-      transition: opacity 0.3s ease;
-      touch-action: none;
-    }
-    
-    #svg-wrapper svg:active {
-      cursor: grabbing;
-    }
-    
-    .input-apple {
-      width: 100%;
-      padding: 11px 14px;
-      border: 1.5px solid rgba(0, 0, 0, 0.1);
-      border-radius: 10px;
-      font-size: 15px;
-      background: rgba(255, 255, 255, 0.9);
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      color: #1d1d1f;
-    }
-    
-    .input-apple:focus {
-      outline: none;
-      border-color: #374151;
-      background: white;
-      box-shadow: 0 0 0 4px rgba(55, 65, 81, 0.1);
-    }
-    
-    .input-apple::placeholder {
-      color: #86868b;
-    }
-    
-    .btn-apple {
-      padding: 11px 20px;
-      background: linear-gradient(180deg, #1f2937 0%, #111827 100%);
-      color: white;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 15px;
-      font-weight: 500;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-      touch-action: manipulation;
-    }
-    
-    .btn-apple:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-      background: linear-gradient(180deg, #374151 0%, #1f2937 100%);
-    }
-    
-    .btn-apple:active {
-      transform: translateY(0);
-    }
-    
-    .btn-secondary {
-      background: linear-gradient(180deg, #6b7280 0%, #4b5563 100%);
-    }
-    
-    .zoom-controls {
-      position: absolute;
-      bottom: 20px;
-      right: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      z-index: 10;
-    }
-    
-    .zoom-btn {
-      width: 50px;
-      height: 50px;
-      border: none;
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(20px);
-      border-radius: 12px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-      font-weight: 500;
-      color: #1d1d1f;
-      transition: all 0.2s ease;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      touch-action: manipulation;
-    }
-    
-    .zoom-btn:active {
-      transform: scale(0.95);
-      background: #f0f0f0;
-    }
-    
-    .info-panel {
-      background: white;
-      border-radius: 16px;
-      padding: 20px;
-      margin-top: 20px;
-      max-height: 450px;
-      overflow-y: auto;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-      -webkit-overflow-scrolling: touch;
-    }
-    
-    .info-panel::-webkit-scrollbar {
-      width: 6px;
-    }
-    
-    .info-panel::-webkit-scrollbar-thumb {
-      background: rgba(0, 0, 0, 0.15);
-      border-radius: 10px;
-    }
-    
-    .info-row {
-      display: flex;
-      padding: 12px 0;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-      transition: background 0.2s ease;
-    }
-    
-    .info-row:hover {
-      background: rgba(55, 65, 81, 0.02);
-    }
-    
-    .info-label {
-      font-weight: 500;
-      color: #86868b;
-      min-width: 140px;
-      font-size: 14px;
-    }
-    
-    .info-value {
-      color: #1d1d1f;
-      flex: 1;
-      font-size: 14px;
-      word-wrap: break-word;
-    }
-    
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 500;
-    }
-    
-    .status-success {
-      background: rgba(16, 185, 129, 0.15);
-      color: #047857;
-    }
-    
-    .status-warning {
-      background: rgba(245, 158, 11, 0.15);
-      color: #b45309;
-    }
-    
-    .status-info {
-      background: rgba(55, 65, 81, 0.15);
-      color: #374151;
-    }
-    
-    .stats-card {
-      background: linear-gradient(135deg, rgba(55, 65, 81, 0.08) 0%, rgba(17, 24, 39, 0.08) 100%);
-      border-radius: 14px;
-      padding: 16px;
-      border: 1px solid rgba(55, 65, 81, 0.15);
-    }
-    
-    .section-header {
-      font-size: 13px;
-      font-weight: 600;
-      color: #86868b;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 12px;
-    }
-    
-    .mobile-drawer {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: white;
-      border-radius: 20px 20px 0 0;
-      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
-      transform: translateY(calc(100% - 80px));
-      transition: transform 0.3s ease;
-      z-index: 100;
-      max-height: 85vh;
-      display: none;
-    }
-    
-    .mobile-drawer.open {
-      transform: translateY(0);
-    }
-    
-    .drawer-handle {
-      width: 40px;
-      height: 4px;
-      background: #d1d5db;
-      border-radius: 2px;
-      margin: 12px auto;
-      cursor: pointer;
-    }
-    
-    .drawer-content {
-      padding: 0 20px 20px;
-      overflow-y: auto;
-      max-height: calc(85vh - 60px);
-      -webkit-overflow-scrolling: touch;
-    }
-    
-    .footer {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: rgba(255, 255, 255, 0.8);
-      backdrop-filter: blur(20px);
-      padding: 8px 20px;
-      text-align: center;
-      font-size: 12px;
-      color: #86868b;
-      border-top: 1px solid rgba(0, 0, 0, 0.06);
-      z-index: 50;
-    }
-    
-    .footer a {
-      color: #374151;
-      text-decoration: none;
-      font-weight: 500;
-    }
-    
-    .footer a:hover {
-      text-decoration: underline;
-    }
-    
-    .checkbox-container {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 0;
-    }
-    
-    .checkbox-apple {
-      width: 20px;
-      height: 20px;
-      cursor: pointer;
-    }
-    
-    @media (max-width: 768px) {
-      .desktop-sidebar {
-        display: none !important;
-      }
-      
-      .mobile-drawer {
-        display: block;
-      }
-      
-      .footer {
-        display: none;
-      }
-      
-      .info-label {
-        min-width: 100px;
-        font-size: 13px;
-      }
-      
-      .info-value {
-        font-size: 13px;
-      }
-      
-      .zoom-controls {
-        bottom: 100px;
-        right: 15px;
-      }
-      
-      .zoom-btn {
-        width: 45px;
-        height: 45px;
-      }
-    }
-    
-    @media (min-width: 769px) {
-      .desktop-sidebar {
-        display: block !important;
-      }
-    }
+    :root{--bg:#0f172a;--panel:#0b1220;--accent:#60a5fa}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:#e6eef8}
+    .app{height:100vh;display:flex;flex-direction:column}
+    header{padding:12px 16px;display:flex;align-items:center;gap:12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent)}
+    header h1{font-size:16px;margin:0}
+    main{flex:1;display:flex}
+    /* map column */
+    .map-column{flex:1;display:flex;align-items:stretch;justify-content:center;padding:12px}
+    /* container that holds SVG — we will transform this element */
+    #mapContainer{width:100%;height:100%;max-width:1400px;max-height:100%;background:#081026;border-radius:8px;overflow:hidden;position:relative;touch-action:none}
+    /* center the SVG inside container */
+    #mapWrapper{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+    svg{max-width:100%;max-height:100%;display:block;user-select:none;pointer-events:auto}
+
+    /* controls */
+    .panel{width:320px;background:var(--panel);padding:12px;border-left:1px solid rgba(255,255,255,0.02)}
+    .controls{display:flex;gap:8px;flex-wrap:wrap}
+    button{background:#0b1220;color:#e6eef8;border:1px solid rgba(255,255,255,0.03);padding:8px 10px;border-radius:6px;cursor:pointer}
+    small.hint{display:block;margin-top:8px;color:#9fb4d9}
+    footer{padding:8px 12px;font-size:12px;color:#9fb4d9;background:linear-gradient(0deg,transparent,rgba(255,255,255,0.01))}
   </style>
 </head>
-
 <body>
-  <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 backdrop-blur-sm">
-    <div class="glass-dark p-8 rounded-3xl shadow-2xl flex flex-col items-center">
-      <div class="spinner"></div>
-      <p class="mt-5 text-gray-700 font-medium" id="loading-text">Loading exhibition data...</p>
-      <p class="mt-2 text-sm text-gray-500" id="loading-detail"></p>
-    </div>
+  <div class="app">
+    <header>
+      <h1>Exhibition Navigator — Map Viewer</h1>
+      <div style="margin-left:auto;opacity:0.9">Firman — MapController refactor</div>
+    </header>
+
+    <main>
+      <div class="map-column">
+        <div id="mapContainer">
+          <div id="mapWrapper" aria-hidden="false">
+            <!-- SVG will be loaded here via JS (keeps HTML clean and lets JS wire handlers) -->
+            <div id="loading" style="color:#7ea2ff;padding:10px">Loading map…</div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="panel">
+        <div style="margin-bottom:8px"><strong>Controls</strong></div>
+        <div class="controls">
+          <button id="zoomIn">Zoom +</button>
+          <button id="zoomOut">Zoom -</button>
+          <button id="reset">Reset</button>
+          <button id="fit">Fit to view</button>
+        </div>
+        <small class="hint">Drag to pan. Scroll to zoom. Pinch to zoom on mobile. Interaction uses Pointer Events + inertial panning.</small>
+        <hr style="margin:12px 0;border:none;border-top:1px solid rgba(255,255,255,0.02)" />
+        <div><strong>Diagnostics</strong></div>
+        <div id="debug" style="margin-top:8px;font-size:12px;color:#9fb4d9">status: idle</div>
+      </aside>
+    </main>
+
+    <footer>
+      Built with ❤️ — MapController + smooth pan/zoom + pinch + inertia
+    </footer>
   </div>
 
-  <header class="glass-dark shadow-lg">
-    <div class="max-w-screen-2xl mx-auto px-4 md:px-6 py-4 md:py-5">
-      <div class="flex justify-between items-center">
-        <div>
-          <h1 class="text-xl md:text-2xl font-semibold text-gray-900">🗺️ Exhibition Navigator</h1>
-          <div id="status" class="mt-2">
-            <span class="status-badge status-info">
-              <span class="inline-block w-2 h-2 bg-gray-600 rounded-full"></span>
-              Initializing...
-            </span>
-          </div>
-        </div>
-        <div class="flex gap-2 items-center">
-          <button id="admin-upload-btn" class="btn-apple px-4 py-2 text-sm hidden">
-            📁 Admin Upload
-          </button>
-          <button id="mobile-menu-btn" class="md:hidden btn-apple px-4 py-2">
-            <span class="text-lg">☰</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  </header>
+  <script type="module">
+    // MapController: encapsulates pan/zoom behavior for an SVG or any element
+    class MapController {
+      constructor(container, options = {}) {
+        this.container = container; // element that contains the SVG
+        this.wrapper = container.querySelector('#mapWrapper');
+        this.svg = null; // will be set once SVG is loaded
 
-  <!-- Admin Upload Modal -->
-  <div id="admin-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div class="glass-dark rounded-2xl p-6 max-w-md w-full">
-      <h3 class="text-xl font-semibold mb-4">🔐 Admin File Upload</h3>
-      <div class="mb-4">
-        <label class="block text-sm font-medium mb-2">SVG Map File</label>
-        <input id="admin-svg-upload" type="file" accept=".svg" class="input-apple" />
-      </div>
-      <div class="mb-4">
-        <label class="block text-sm font-medium mb-2">Data File (CSV/Excel)</label>
-        <input id="admin-data-upload" type="file" accept=".csv,.xlsx,.xls" class="input-apple" />
-      </div>
-      <div class="flex gap-3">
-        <button id="admin-modal-close" class="btn-apple btn-secondary flex-1">Cancel</button>
-        <button id="admin-modal-load" class="btn-apple flex-1">Load Files</button>
-      </div>
-    </div>
-  </div>
+        // transform state
+        this.scale = options.initialScale ?? 1;
+        this.x = options.initialX ?? 0; // translation in px
+        this.y = options.initialY ?? 0;
 
-  <main class="flex h-[calc(100vh-100px)] md:h-[calc(100vh-180px)] mt-2 md:mt-4">
-    <aside class="desktop-sidebar w-80 glass ml-4 rounded-2xl shadow-xl overflow-y-auto" style="max-height: calc(100vh - 200px);">
-      <div class="p-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-6">🔍 Search & Filter</h2>
-        
-        <div class="mb-5">
-          <label class="section-header">Quick Find Booth</label>
-          <input id="quick-search" type="text" class="input-apple" placeholder="e.g., B2H212" />
-          <p class="text-xs text-gray-500 mt-2">Press Enter to find</p>
-        </div>
-        
-        <div class="border-t border-gray-200 my-5"></div>
-        
-        <!-- Badge Filters -->
-        <div class="mb-5">
-          <label class="section-header">Exhibitor Type</label>
-          <div class="checkbox-container">
-            <input type="checkbox" id="filter-vip" class="checkbox-apple" />
-            <label for="filter-vip" class="text-sm font-medium cursor-pointer">
-              <span class="badge badge-vip">⭐ VIP</span>
-            </label>
-          </div>
-          <div class="checkbox-container">
-            <input type="checkbox" id="filter-o2o" class="checkbox-apple" />
-            <label for="filter-o2o" class="text-sm font-medium cursor-pointer">
-              <span class="badge badge-o2o">🔗 O2O</span>
-            </label>
-          </div>
-        </div>
-        
-        <div class="mb-5">
-          <label class="section-header">Company Name</label>
-          <input id="filter-company" type="text" class="input-apple" placeholder="Search company..." />
-        </div>
-        
-        <div class="mb-5">
-          <label class="section-header">Category (T1)</label>
-          <select id="filter-t1" class="input-apple">
-            <option value="">All Categories</option>
-          </select>
-        </div>
-        
-        <div class="mb-5">
-          <label class="section-header">Sub-category (T2)</label>
-          <select id="filter-t2" class="input-apple">
-            <option value="">All Sub-categories</option>
-          </select>
-        </div>
-        
-        <div class="mb-5">
-          <label class="section-header">Product Type (T3)</label>
-          <select id="filter-t3" class="input-apple">
-            <option value="">All Product Types</option>
-          </select>
-        </div>
-        
-        <div class="mb-5">
-          <label class="section-header">Products</label>
-          <input id="filter-product" type="text" class="input-apple" placeholder="Search products..." />
-        </div>
-        
-        <div class="flex gap-3 mb-5">
-          <button id="reset-filters" class="btn-apple btn-secondary flex-1">Reset All</button>
-          <button id="reset-zoom" class="btn-apple flex-1">Reset View</button>
-        </div>
-        
-        <div id="info-panel" class="info-panel hidden fade-in">
-          <h3 id="info-title" class="text-lg font-semibold text-gray-900 mb-3">Select a booth</h3>
-          <div id="info-content"></div>
-        </div>
-        
-        <div class="stats-card mt-5">
-          <p class="section-header mb-2">📊 Statistics</p>
-          <p id="stats" class="text-sm font-medium text-gray-700">Loading...</p>
-        </div>
-      </div>
-    </aside>
+        // interaction state
+        this.isPanning = false;
+        this.pointers = new Map(); // pointerId -> {x,y}
+        this.lastMoves = []; // recent moves for velocity calc
+        this.velocity = { x: 0, y: 0 };
+        this.animFrame = null;
 
-    <div class="mobile-drawer" id="mobile-drawer">
-      <div class="drawer-handle" id="drawer-handle"></div>
-      <div class="drawer-content">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">🔍 Search & Filter</h2>
-        
-        <div class="mb-4">
-          <label class="section-header">Quick Find</label>
-          <input id="quick-search-mobile" type="text" class="input-apple" placeholder="Booth ID" />
-        </div>
-        
-        <div class="mb-4">
-          <label class="section-header">Type</label>
-          <div class="checkbox-container">
-            <input type="checkbox" id="filter-vip-mobile" class="checkbox-apple" />
-            <label for="filter-vip-mobile"><span class="badge badge-vip">⭐ VIP</span></label>
-          </div>
-          <div class="checkbox-container">
-            <input type="checkbox" id="filter-o2o-mobile" class="checkbox-apple" />
-            <label for="filter-o2o-mobile"><span class="badge badge-o2o">🔗 O2O</span></label>
-          </div>
-        </div>
-        
-        <div class="mb-4">
-          <label class="section-header">Company</label>
-          <input id="filter-company-mobile" type="text" class="input-apple" placeholder="Search..." />
-        </div>
-        
-        <div class="mb-4">
-          <label class="section-header">Category</label>
-          <select id="filter-t1-mobile" class="input-apple">
-            <option value="">All</option>
-          </select>
-        </div>
-        
-        <div class="flex gap-3 mb-4">
-          <button id="reset-filters-mobile" class="btn-apple btn-secondary flex-1">Reset</button>
-          <button id="reset-zoom-mobile" class="btn-apple flex-1">Reset View</button>
-        </div>
-        
-        <div id="info-panel-mobile" class="info-panel hidden">
-          <h3 id="info-title-mobile" class="text-lg font-semibold text-gray-900 mb-3">Booth Info</h3>
-          <div id="info-content-mobile"></div>
-        </div>
-        
-        <div class="stats-card mt-4 mb-20">
-          <p class="section-header mb-2">📊 Stats</p>
-          <p id="stats-mobile" class="text-sm font-medium text-gray-700">Loading...</p>
-        </div>
-      </div>
-    </div>
+        // limits
+        this.minScale = options.minScale ?? 0.2;
+        this.maxScale = options.maxScale ?? 5;
 
-    <section id="map-container" class="flex-1 relative mx-2 md:mx-4">
-      <div class="glass-dark rounded-2xl shadow-xl h-full overflow-hidden relative">
-        <div id="svg-wrapper" class="absolute inset-0 flex justify-center items-center">
-          <div class="text-center px-4">
-            <div class="text-4xl md:text-6xl mb-4">🗺️</div>
-            <p class="text-gray-600 text-base md:text-lg font-medium">Loading map...</p>
-          </div>
-        </div>
-        
-        <div class="zoom-controls hidden" id="zoom-controls">
-          <button class="zoom-btn" id="zoom-in" title="Zoom In">+</button>
-          <button class="zoom-btn" id="zoom-out" title="Zoom Out">−</button>
-          <button class="zoom-btn" id="zoom-reset" title="Reset" style="font-size: 18px;">⟲</button>
-        </div>
-        
-        <div id="tooltip" class="tooltip"></div>
-      </div>
-    </section>
-  </main>
+        // smoothness
+        this.friction = options.friction ?? 0.92; // inertia deceleration
+        this.velocityThreshold = options.velocityThreshold ?? 0.05;
 
-  <div class="footer">
-    Made with ❤️ by <strong>Your Team</strong> | Powered by Claude AI
-  </div>
+        // debugging hook
+        this.debugEl = document.getElementById('debug');
 
-  <script>
-    console.log('🚀 Exhibition Navigator v2.1');
-    
-    // ==================== CONFIG ====================
-    const CONFIG = {
-      // ADMIN: Edit these to match your exact filenames in GitHub
-      svgFiles: [
-        'map.svg', 
-        'Nov_IDN_clean.svg', 
-        'floorplan.svg',
-        'exhibition-map.svg'
-      ],
-      dataFiles: [
-        'data.csv', 
-        'sellers.csv', 
-        'Sellers.xlsx', 
-        'seller_sample.csv',
-        'exhibitors.csv'
-      ],
-      autoLoad: true,
-      enableAdminUpload: true  // Show upload button if auto-load fails
-    };
-    
-    // ==================== STATE ====================
-    let svgElement = null;
-    let boothData = [];
-    let boothMap = {};
-    let boothElements = new Map();
-    let selectedBoothId = null;
-    let filterTimeout = null;
-    let isMobile = window.innerWidth <= 768;
-    
-    let viewBox = { x: 0, y: 0, width: 1000, height: 1000 };
-    let isPanning = false;
-    let startPoint = { x: 0, y: 0 };
-    let touchStartDistance = 0;
+        // bind handlers
+        this.onPointerDown = this.onPointerDown.bind(this);
+        this.onPointerMove = this.onPointerMove.bind(this);
+        this.onPointerUp = this.onPointerUp.bind(this);
+        this.onWheel = this.onWheel.bind(this);
 
-    const tooltip = document.getElementById("tooltip");
-    const loadingOverlay = document.getElementById("loading-overlay");
-    const loadingText = document.getElementById("loading-text");
-    const loadingDetail = document.getElementById("loading-detail");
-    const statusEl = document.getElementById("status");
-    const mobileDrawer = document.getElementById("mobile-drawer");
-    const drawerHandle = document.getElementById("drawer-handle");
-
-    function setStatus(msg, type = "info") {
-      const badges = {
-        success: { class: "status-success", dot: "bg-emerald-600" },
-        warning: { class: "status-warning", dot: "bg-amber-600" },
-        info: { class: "status-info", dot: "bg-gray-600" }
-      };
-      const badge = badges[type];
-      statusEl.innerHTML = `<span class="status-badge ${badge.class}">
-        <span class="inline-block w-2 h-2 ${badge.dot} rounded-full"></span>${msg}</span>`;
-      console.log(`[STATUS] ${msg}`);
-    }
-
-    function showLoading(msg = "Loading...", detail = "") {
-      loadingText.textContent = msg;
-      loadingDetail.textContent = detail;
-      loadingOverlay.classList.remove("hidden");
-    }
-
-    function hideLoading() {
-      loadingOverlay.classList.add("hidden");
-    }
-
-    function debounce(func, delay) {
-      return function(...args) {
-        clearTimeout(filterTimeout);
-        filterTimeout = setTimeout(() => func.apply(this, args), delay);
-      };
-    }
-
-    // ==================== MOBILE DRAWER ====================
-    let drawerOpen = false;
-    
-    drawerHandle.addEventListener('click', toggleDrawer);
-    document.getElementById('mobile-menu-btn').addEventListener('click', () => {
-      drawerOpen = true;
-      mobileDrawer.classList.add('open');
-    });
-    
-    function toggleDrawer(e) {
-      e.preventDefault();
-      drawerOpen = !drawerOpen;
-      mobileDrawer.classList.toggle('open', drawerOpen);
-    }
-
-    // ==================== PAN & ZOOM ====================
-    function initPanZoom() {
-      if (!svgElement) return;
-      
-      const vb = svgElement.getAttribute("viewBox");
-      if (vb) {
-        const parts = vb.split(/\s+|,/).map(Number);
-        viewBox = { x: parts[0], y: parts[1], width: parts[2], height: parts[3] };
-      } else {
-        const bbox = svgElement.getBBox();
-        viewBox = { x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height };
-        svgElement.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+        // init
+        this.init();
       }
-      
-      svgElement.addEventListener("wheel", (e) => {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? 1.1 : 0.9;
-        zoom(delta, e.offsetX, e.offsetY);
-      }, { passive: false });
-      
-      svgElement.addEventListener("mousedown", startPan);
-      svgElement.addEventListener("mousemove", doPan);
-      svgElement.addEventListener("mouseup", endPan);
-      svgElement.addEventListener("mouseleave", endPan);
-      
-      svgElement.addEventListener("touchstart", handleTouchStart, { passive: false });
-      svgElement.addEventListener("touchmove", handleTouchMove, { passive: false });
-      svgElement.addEventListener("touchend", endPan);
-      
-      document.getElementById("zoom-controls").classList.remove("hidden");
-    }
-    
-    function zoom(factor, mouseX = null, mouseY = null) {
-      const newWidth = viewBox.width * factor;
-      const newHeight = viewBox.height * factor;
-      
-      if (newWidth < viewBox.width * 0.1 || newWidth > viewBox.width * 10) return;
-      
-      if (mouseX !== null && mouseY !== null) {
-        const rect = svgElement.getBoundingClientRect();
-        const svgX = viewBox.x + (mouseX / rect.width) * viewBox.width;
-        const svgY = viewBox.y + (mouseY / rect.height) * viewBox.height;
-        
-        viewBox.x = svgX - (mouseX / rect.width) * newWidth;
-        viewBox.y = svgY - (mouseY / rect.height) * newHeight;
-      } else {
-        viewBox.x += (viewBox.width - newWidth) / 2;
-        viewBox.y += (viewBox.height - newHeight) / 2;
-      }
-      
-      viewBox.width = newWidth;
-      viewBox.height = newHeight;
-      
-      updateViewBox();
-    }
-    
-    function doPan(e) {
-      if (!isPanning) return;
-      
-      const dx = e.clientX - startPoint.x;
-      const dy = e.clientY - startPoint.y;
-      
-      const rect = svgElement.getBoundingClientRect();
-      const scaleX = viewBox.width / rect.width;
-      const scaleY = viewBox.height / rect.height;
-      
-      viewBox.x -= dx * scaleX;
-      viewBox.y -= dy * scaleY;
-      
-      startPoint = { x: e.clientX, y: e.clientY };
-      updateViewBox();
-    }
-    
-    function endPan() {
-      isPanning = false;
-      if (svgElement) svgElement.style.cursor = "grab";
-    }
-    
-    function handleTouchStart(e) {
-      if (e.touches.length === 1) {
-        e.preventDefault();
-        isPanning = true;
-        startPoint = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      } else if (e.touches.length === 2) {
-        e.preventDefault();
-        isPanning = false;
-        const touch1 = e.touches[0];
-        const touch2 = e.touches[1];
-        touchStartDistance = Math.hypot(
-          touch2.clientX - touch1.clientX,
-          touch2.clientY - touch1.clientY
-        );
-      }
-    }
-    
-    function handleTouchMove(e) {
-      if (e.touches.length === 1 && isPanning) {
-        e.preventDefault();
-        
-        const dx = e.touches[0].clientX - startPoint.x;
-        const dy = e.touches[0].clientY - startPoint.y;
-        
-        const rect = svgElement.getBoundingClientRect();
-        const scaleX = viewBox.width / rect.width;
-        const scaleY = viewBox.height / rect.height;
-        
-        viewBox.x -= dx * scaleX;
-        viewBox.y -= dy * scaleY;
-        
-        startPoint = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        updateViewBox();
-      } else if (e.touches.length === 2) {
-        e.preventDefault();
-        
-        const touch1 = e.touches[0];
-        const touch2 = e.touches[1];
-        const currentDistance = Math.hypot(
-          touch2.clientX - touch1.clientX,
-          touch2.clientY - touch1.clientY
-        );
-        
-        const factor = touchStartDistance / currentDistance;
-        zoom(factor);
-        touchStartDistance = currentDistance;
-      }
-    }
-    
-    function updateViewBox() {
-      svgElement.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
-    }
-    
-    function resetZoom() {
-      if (!svgElement) return;
-      
-      const bbox = svgElement.getBBox();
-      viewBox = { 
-        x: bbox.x, 
-        y: bbox.y, 
-        width: bbox.width, 
-        height: bbox.height 
-      };
-      
-      updateViewBox();
-    }
 
-    // ==================== AUTO LOAD FILES ====================
-    async function tryLoadFile(filenames, loader) {
-      for (const filename of filenames) {
-        try {
-          console.log(`🔍 Trying: ${filename}`);
-          loadingDetail.textContent = `Checking: ${filename}`;
-          const result = await loader(filename);
-          if (result) {
-            console.log(`✅ SUCCESS: ${filename}`);
-            return filename;
-          }
-        } catch (error) {
-          console.log(`❌ Failed: ${filename} - ${error.message}`);
-        }
-      }
-      return null;
-    }
+      logDebug(txt){ if(this.debugEl) this.debugEl.textContent = txt }
 
-    async function loadSVGFromServer() {
-      const loader = async (filename) => {
-        const response = await fetch(filename + '?t=' + Date.now()); // Cache bust
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
-        const text = await response.text();
-        
-        // Check if it's actually SVG content
-        if (!text.includes('<svg')) {
-          throw new Error('Not a valid SVG file');
-        }
-        
-        document.getElementById("svg-wrapper").innerHTML = text;
-
-        svgElement = document.querySelector("#svg-wrapper svg");
-        if (!svgElement) throw new Error("No SVG element found");
-
-        svgElement.style.width = "100%";
-        svgElement.style.height = "100%";
-        svgElement.style.cursor = "grab";
-
-        initPanZoom();
-        cacheBoothElements();
-
-        console.log(`📊 SVG Stats: ${boothElements.size} booth elements found`);
-        return true;
-      };
-
-      const loaded = await tryLoadFile(CONFIG.svgFiles, loader);
-      
-      if (!loaded) {
-        console.error('❌ No SVG file found. Tried:', CONFIG.svgFiles);
-        document.getElementById("svg-wrapper").innerHTML = `
-          <div class="text-center px-4">
-            <div class="text-4xl mb-4">⚠️</div>
-            <p class="text-red-600 font-medium">Map file not found</p>
-            <p class="text-sm text-gray-500 mt-2">Files checked:</p>
-            <p class="text-xs text-gray-400 mt-1 font-mono">${CONFIG.svgFiles.join('<br>')}</p>
-            <button id="retry-svg" class="btn-apple mt-4">Retry</button>
-          </div>
-        `;
-        
-        document.getElementById('retry-svg')?.addEventListener('click', () => {
-          init();
-        });
-        
-        return false;
-      }
-      
-      return true;
-    }
-
-    async function loadDataFromServer() {
-      const loader = async (filename) => {
-        const response = await fetch(filename + '?t=' + Date.now()); // Cache bust
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
-        let jsonData;
-        
-        if (filename.endsWith('.csv')) {
-          const text = await response.text();
-          
-          // Check if it's actually CSV content
-          if (text.length < 10) {
-            throw new Error('File too small or empty');
-          }
-          
-          const parsed = Papa.parse(text, {
-            header: true,
-            delimiter: ";",
-            skipEmptyLines: true,
-            encoding: "UTF-8"
-          });
-          
-          if (!parsed.data || parsed.data.length === 0) {
-            throw new Error('No data parsed from CSV');
-          }
-          
-          jsonData = parsed.data;
-          console.log('📋 CSV columns:', Object.keys(jsonData[0]));
+      async init() {
+        // load the SVG (attempt to find <svg> inside mapWrapper or fetch map.svg)
+        const existingSvg = this.wrapper.querySelector('svg');
+        if (existingSvg) {
+          this.svg = existingSvg;
         } else {
-          const data = await response.arrayBuffer();
-          const workbook = XLSX.read(data, { type: "array" });
-          const sheetName = workbook.SheetNames[0];
-          jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-          console.log('📋 Excel columns:', Object.keys(jsonData[0]));
+          // try to fetch map.svg from repo root (adjust path if needed)
+          try {
+            const resp = await fetch('/map.svg');
+            if (!resp.ok) throw new Error('map.svg not found');
+            const text = await resp.text();
+            this.wrapper.innerHTML = text;
+            this.svg = this.wrapper.querySelector('svg');
+          } catch (err) {
+            // If fetch fails, keep the loading message
+            this.logDebug('Failed loading map.svg — check path.');
+            console.warn(err);
+            return;
+          }
         }
 
-        boothData = jsonData;
-        buildBoothMap(jsonData);
-        populateFilters(jsonData);
-        
-        console.log(`📊 Data Stats: ${jsonData.length} rows, ${Object.keys(boothMap).length} booths`);
-        return true;
-      };
+        // prepare svg & styles
+        this.svg.style.touchAction = 'none'; // disable default gestures
+        this.svg.style.userSelect = 'none';
+        this.svg.style.transformOrigin = '0 0';
 
-      const loaded = await tryLoadFile(CONFIG.dataFiles, loader);
-      
-      if (!loaded) {
-        console.error('❌ No data file found. Tried:', CONFIG.dataFiles);
-        setStatus(`⚠️ Data file not found`, "warning");
-        return false;
+        // initialize transform
+        this.applyTransform();
+
+        // pointer events
+        this.svg.addEventListener('pointerdown', this.onPointerDown, { passive: false });
+        window.addEventListener('pointermove', this.onPointerMove, { passive: false });
+        window.addEventListener('pointerup', this.onPointerUp, { passive: false });
+        window.addEventListener('pointercancel', this.onPointerUp, { passive: false });
+
+        // wheel zoom
+        this.svg.addEventListener('wheel', this.onWheel, { passive: false });
+
+        // control buttons
+        document.getElementById('zoomIn').addEventListener('click', () => this.zoomBy(1.2));
+        document.getElementById('zoomOut').addEventListener('click', () => this.zoomBy(1/1.2));
+        document.getElementById('reset').addEventListener('click', () => this.reset());
+        document.getElementById('fit').addEventListener('click', () => this.fitToView());
+
+        this.logDebug('map loaded');
       }
-      
-      return true;
-    }
 
-    function cacheBoothElements() {
-      boothElements.clear();
-      
-      const elementsWithIds = svgElement.querySelectorAll("[id]");
-      elementsWithIds.forEach(el => {
-        const id = el.id.trim();
-        if (id) {
-          boothElements.set(id.toUpperCase(), el);
+      // converts client coords to local (before transform)
+      clientToLocal(clientX, clientY) {
+        const rect = this.svg.getBoundingClientRect();
+        const x = (clientX - rect.left - this.x) / this.scale;
+        const y = (clientY - rect.top - this.y) / this.scale;
+        return { x, y };
+      }
+
+      applyTransform() {
+        // apply translate then scale
+        // Use translate3d to trigger GPU acceleration
+        this.svg.style.transform = `translate3d(${this.x}px, ${this.y}px, 0) scale(${this.scale})`;
+      }
+
+      onPointerDown(e) {
+        // capture pointer
+        this.svg.setPointerCapture?.(e.pointerId);
+        this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        if (this.pointers.size === 1) {
+          // start single pointer pan
+          this.isPanning = true;
+          this.lastMoves = [{t: performance.now(), x: e.clientX, y: e.clientY}];
+          // stop any inertia
+          this.stopAnim();
         }
-      });
-      
-      const textElements = svgElement.querySelectorAll("text, tspan");
-      let textBoothCount = 0;
-      
-      textElements.forEach(el => {
-        const textContent = el.textContent.trim();
-        const boothPattern = /^[A-Z0-9]{2,}[A-Z][0-9]{2,}$/i;
-        
-        if (boothPattern.test(textContent)) {
-          const upperID = textContent.toUpperCase();
-          
-          let targetElement = el;
-          let parent = el.parentElement;
-          
-          while (parent && parent !== svgElement) {
-            if (parent.tagName === 'g' || parent.tagName === 'rect' || parent.tagName === 'path') {
-              targetElement = parent;
-              break;
+
+        if (this.pointers.size === 2) {
+          // pinch start: record initial distance & midpoint
+          const pts = Array.from(this.pointers.values());
+          this.pinchStart = {
+            dist: this.distance(pts[0], pts[1]),
+            scale: this.scale,
+            midpoint: { x: (pts[0].x + pts[1].x)/2, y: (pts[0].y + pts[1].y)/2 }
+          };
+        }
+
+        e.preventDefault();
+      }
+
+      onPointerMove(e) {
+        if (!this.pointers.has(e.pointerId)) return;
+        const prev = this.pointers.get(e.pointerId);
+        const cur = { x: e.clientX, y: e.clientY };
+        this.pointers.set(e.pointerId, cur);
+
+        if (this.pointers.size === 1 && this.isPanning) {
+          const dx = cur.x - prev.x;
+          const dy = cur.y - prev.y;
+
+          this.x += dx;
+          this.y += dy;
+          this.applyTransform();
+
+          // save move sample for velocity
+          this.lastMoves.push({ t: performance.now(), x: cur.x, y: cur.y });
+          // keep last 10 samples
+          if (this.lastMoves.length > 10) this.lastMoves.shift();
+        }
+
+        if (this.pointers.size === 2) {
+          // handle pinch zoom
+          const pts = Array.from(this.pointers.values());
+          const dist = this.distance(pts[0], pts[1]);
+          const midpoint = { x: (pts[0].x + pts[1].x)/2, y: (pts[0].y + pts[1].y)/2 };
+
+          const factor = dist / this.pinchStart.dist;
+          const newScale = this.clamp(this.pinchStart.scale * factor, this.minScale, this.maxScale);
+
+          // compute local coords around midpoint
+          const localBefore = this.clientToLocal(this.pinchStart.midpoint.x, this.pinchStart.midpoint.y);
+          const localAfter = this.clientToLocal(midpoint.x, midpoint.y);
+
+          // adjust translation so the midpoint stays under the same content point
+          // transform: x' = midpointClient - local*scale'
+          const rect = this.svg.getBoundingClientRect();
+          const clientMidX = midpoint.x - rect.left;
+          const clientMidY = midpoint.y - rect.top;
+
+          this.scale = newScale;
+          // recompute x,y to keep content stable under midpoint
+          this.x = clientMidX - localAfter.x * this.scale;
+          this.y = clientMidY - localAfter.y * this.scale;
+
+          this.applyTransform();
+        }
+
+        e.preventDefault();
+      }
+
+      onPointerUp(e) {
+        if (!this.pointers.has(e.pointerId)) return;
+        // remove pointer
+        this.pointers.delete(e.pointerId);
+
+        if (this.pointers.size === 0 && this.isPanning) {
+          // compute velocity from lastMoves
+          const len = this.lastMoves.length;
+          if (len >= 2) {
+            const a = this.lastMoves[0];
+            const b = this.lastMoves[len - 1];
+            const dt = (b.t - a.t) / 1000; // seconds
+            if (dt > 0) {
+              const vx = (b.x - a.x) / dt;
+              const vy = (b.y - a.y) / dt;
+              this.velocity.x = vx;
+              this.velocity.y = vy;
+              // start inertia
+              this.startInertia();
             }
-            parent = parent.parentElement;
-          }
-          
-          if (!boothElements.has(upperID)) {
-            boothElements.set(upperID, targetElement);
-            textBoothCount++;
           }
         }
-      });
-      
-      console.log(`Cached ${boothElements.size} booths (${textBoothCount} from text)`);
-    }
 
-    function buildBoothMap(data) {
-      boothMap = {};
-      data.forEach(row => {
-        const boothId = String(row["Stand_no"] || "").trim().toUpperCase();
-        if (boothId) {
-          boothMap[boothId] = row;
+        // reset pan state
+        if (this.pointers.size === 0) {
+          this.isPanning = false;
         }
-      });
-    }
 
-    // ==================== BOOTH BINDING ====================
-    function bindBooths() {
-      if (!svgElement || !Object.keys(boothMap).length) {
-        setStatus("⚠️ Missing data", "warning");
-        return;
+        e.preventDefault();
       }
 
-      let matched = 0;
-      let unmatched = 0;
-      let vipCount = 0;
-      let o2oCount = 0;
+      onWheel(e) {
+        e.preventDefault();
+        // zoom towards cursor
+        const delta = -e.deltaY;
+        const zoomFactor = delta > 0 ? 1.08 : 1/1.08;
+        const rect = this.svg.getBoundingClientRect();
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
 
-      boothElements.forEach((el, boothId) => {
-        const boothInfo = boothMap[boothId];
+        const before = { x: (cx - this.x) / this.scale, y: (cy - this.y) / this.scale };
+        const newScale = this.clamp(this.scale * zoomFactor, this.minScale, this.maxScale);
 
-        el.classList.remove("booth-highlighted", "booth-dimmed", "booth-selected", "booth-unmatched", "booth-vip", "booth-o2o");
-        el.style.cursor = "default";
-        el.style.opacity = "";
-        el.style.filter = "";
+        this.scale = newScale;
+        this.x = cx - before.x * this.scale;
+        this.y = cy - before.y * this.scale;
 
-        if (boothInfo) {
-          matched++;
-          el.style.cursor = "pointer";
-          el.style.opacity = "1";
-          
-          // Check VIP and O2O status
-          const isVIP = String(boothInfo["VIP"] || "").toLowerCase() === "yes" || String(boothInfo["VIP"] || "").toLowerCase() === "y";
-          const isO2O = String(boothInfo["O2O"] || "").toLowerCase() === "yes" || String(boothInfo["O2O"] || "").toLowerCase() === "y";
-          
-          if (isVIP) {
-            el.classList.add("booth-vip");
-            vipCount++;
+        this.applyTransform();
+      }
+
+      startInertia() {
+        if (this.animFrame) cancelAnimationFrame(this.animFrame);
+        const step = () => {
+          // apply velocity
+          this.x += this.velocity.x * (1/60); // assume 60fps -> px per frame
+          this.y += this.velocity.y * (1/60);
+
+          // apply friction
+          this.velocity.x *= this.friction;
+          this.velocity.y *= this.friction;
+
+          // stop condition
+          if (Math.abs(this.velocity.x) < this.velocityThreshold && Math.abs(this.velocity.y) < this.velocityThreshold) {
+            this.velocity.x = 0; this.velocity.y = 0; this.applyTransform(); this.animFrame = null; return;
           }
-          if (isO2O) {
-            el.classList.add("booth-o2o");
-            o2oCount++;
-          }
-          
-          const newEl = el.cloneNode(true);
-          el.parentNode.replaceChild(newEl, el);
-          boothElements.set(boothId, newEl);
-          
-          newEl.addEventListener("mouseenter", (evt) => showTooltip(evt, boothInfo));
-          newEl.addEventListener("mousemove", moveTooltip);
-          newEl.addEventListener("mouseleave", hideTooltip);
-          newEl.addEventListener("click", (e) => {
-            e.stopPropagation();
-            selectBooth(boothId, boothInfo);
-          });
-          newEl.addEventListener("touchend", (e) => {
-            e.preventDefault();
-            selectBooth(boothId, boothInfo);
-          });
-        } else {
-          unmatched++;
-          el.classList.add("booth-unmatched");
-        }
-      });
 
-      console.log(`VIP: ${vipCount}, O2O: ${o2oCount}`);
-      setStatus(`🎯 ${matched} booths (${vipCount} VIP, ${o2oCount} O2O)`, "success");
-      updateStats();
-      applyFilters();
-    }
-
-    // ==================== TOOLTIP ====================
-    function showTooltip(evt, boothInfo) {
-      if (isMobile) return;
-      
-      const company = boothInfo["Company name"] || "N/A";
-      const boothId = boothInfo["Stand_no"] || "";
-      const t1 = boothInfo["T1"] || "";
-      const products = boothInfo["Exhibited products"] || "";
-      const isVIP = String(boothInfo["VIP"] || "").toLowerCase() === "yes" || String(boothInfo["VIP"] || "").toLowerCase() === "y";
-      const isO2O = String(boothInfo["O2O"] || "").toLowerCase() === "yes" || String(boothInfo["O2O"] || "").toLowerCase() === "y";
-
-      let badges = '';
-      if (isVIP) badges += '<span class="badge badge-vip">⭐ VIP</span> ';
-      if (isO2O) badges += '<span class="badge badge-o2o">🔗 O2O</span>';
-
-      tooltip.innerHTML = `
-        <div class="font-bold text-base mb-1">${company}</div>
-        <div class="text-xs text-gray-300 mb-2">📍 Booth: ${boothId}</div>
-        ${badges ? `<div class="mb-2">${badges}</div>` : ''}
-        ${t1 ? `<div class="text-xs text-yellow-200">📂 ${t1}</div>` : ""}
-        ${products ? `<div class="text-xs text-green-200 mt-1">🏷️ ${products.substring(0, 60)}${products.length > 60 ? '...' : ''}</div>` : ""}
-      `;
-      tooltip.style.display = "block";
-      moveTooltip(evt);
-    }
-
-    function moveTooltip(evt) {
-      tooltip.style.left = (evt.pageX + 15) + "px";
-      tooltip.style.top = (evt.pageY + 15) + "px";
-    }
-
-    function hideTooltip() {
-      tooltip.style.display = "none";
-    }
-
-    // ==================== BOOTH SELECTION ====================
-    function selectBooth(boothId, boothInfo) {
-      if (selectedBoothId && boothElements.has(selectedBoothId)) {
-        const prevEl = boothElements.get(selectedBoothId);
-        prevEl.classList.remove("booth-selected");
+          this.applyTransform();
+          this.animFrame = requestAnimationFrame(step);
+        };
+        this.animFrame = requestAnimationFrame(step);
       }
 
-      selectedBoothId = boothId;
-      const el = boothElements.get(boothId);
-      if (el) {
-        el.classList.add("booth-selected");
-        el.style.opacity = "1";
+      stopAnim(){ if (this.animFrame) cancelAnimationFrame(this.animFrame); this.animFrame = null; this.velocity = {x:0,y:0}; }
+
+      zoomBy(factor) {
+        // center on container center
+        const rect = this.svg.getBoundingClientRect();
+        const cx = rect.width / 2;
+        const cy = rect.height / 2;
+        const before = { x: (cx - this.x) / this.scale, y: (cy - this.y) / this.scale };
+        const newScale = this.clamp(this.scale * factor, this.minScale, this.maxScale);
+        this.scale = newScale;
+        this.x = cx - before.x * this.scale;
+        this.y = cy - before.y * this.scale;
+        this.applyTransform();
       }
 
-      displayBoothInfo(boothInfo);
-      setTimeout(() => zoomToBooth(boothId), 100);
-      
-      if (isMobile) {
-        mobileDrawer.classList.add('open');
-        drawerOpen = true;
-      }
-    }
-
-    function displayBoothInfo(booth) {
-      const infoPanels = ['info-panel', 'info-panel-mobile'];
-      const titles = ['info-title', 'info-title-mobile'];
-      const contents = ['info-content', 'info-content-mobile'];
-      
-      infoPanels.forEach(id => document.getElementById(id)?.classList.remove('hidden'));
-      
-      const titleText = booth["Company name"] || "Exhibitor Details";
-      titles.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = titleText;
-      });
-
-      const isVIP = String(booth["VIP"] || "").toLowerCase() === "yes" || String(booth["VIP"] || "").toLowerCase() === "y";
-      const isO2O = String(booth["O2O"] || "").toLowerCase() === "yes" || String(booth["O2O"] || "").toLowerCase() === "y";
-
-      let badges = '';
-      if (isVIP) badges += '<span class="badge badge-vip ml-2">⭐ VIP</span>';
-      if (isO2O) badges += '<span class="badge badge-o2o ml-2">🔗 O2O</span>';
-
-      const fields = [
-        { label: "Booth ID", key: "Stand_no" },
-        { label: "Products", key: "Exhibited products", important: true },
-        { label: "Category (T1)", key: "T1", important: true },
-        { label: "Sub-category (T2)", key: "T2", important: true },
-        { label: "Product Type (T3)", key: "T3", important: true },
-        { label: "Exhibition Area", key: "Exhibition area" }
-      ];
-
-      let html = badges ? `<div class="mb-3">${badges}</div>` : "";
-      
-      fields.forEach(field => {
-        const value = booth[field.key] || "-";
-        const isImportant = field.important;
-        
-        if (value !== "-") {
-          html += `
-            <div class="info-row ${isImportant ? 'bg-blue-50' : ''}">
-              <div class="info-label ${isImportant ? 'text-blue-800 font-semibold' : ''}">${field.label}:</div>
-              <div class="info-value ${isImportant ? 'text-blue-900 font-medium' : ''}">${value}</div>
-            </div>
-          `;
-        }
-      });
-
-      if (booth["International station link"]) {
-        html += `
-          <div class="mt-3">
-            <a href="${booth["International station link"]}" target="_blank" 
-               class="inline-block w-full text-center bg-gray-800 hover:bg-gray-900 text-white py-3 px-4 rounded-lg transition-colors text-sm font-medium">
-              🌐 Visit Company Website →
-            </a>
-          </div>
-        `;
+      reset() {
+        this.scale = 1; this.x = 0; this.y = 0; this.applyTransform();
       }
 
-      contents.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.innerHTML = html;
-      });
-    }
-
-    function zoomToBooth(boothId) {
-      const el = boothElements.get(boothId);
-      if (!el || !svgElement) return;
-
-      try {
-        const bbox = el.getBBox();
-        const padding = Math.max(bbox.width, bbox.height) * 3;
-        const targetWidth = bbox.width + padding;
-        const targetHeight = bbox.height + padding;
-        
-        viewBox.x = bbox.x + bbox.width / 2 - targetWidth / 2;
-        viewBox.y = bbox.y + bbox.height / 2 - targetHeight / 2;
-        viewBox.width = targetWidth;
-        viewBox.height = targetHeight;
-        
-        updateViewBox();
-      } catch (error) {
-        console.error('Zoom error:', error);
+      fitToView() {
+        // naive fit: scale to fit container while preserving aspect
+        const svgBBox = this.svg.viewBox.baseVal;
+        // if viewBox not set, try bounding box
+        let vbw = svgBBox && svgBBox.width ? svgBBox.width : this.svg.clientWidth;
+        let vbh = svgBBox && svgBBox.height ? svgBBox.height : this.svg.clientHeight;
+        const rect = this.container.getBoundingClientRect();
+        const scaleX = rect.width / vbw;
+        const scaleY = rect.height / vbh;
+        this.scale = Math.min(scaleX, scaleY) * 0.95; // small padding
+        // center
+        this.x = (rect.width - vbw * this.scale) / 2;
+        this.y = (rect.height - vbh * this.scale) / 2;
+        this.applyTransform();
       }
+
+      clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+      distance(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
     }
 
-    // ==================== FILTERS ====================
-    function populateFilters(data) {
-      const categories = [...new Set(data.map(r => r["T1"]).filter(Boolean))].sort();
-      const subCategories = [...new Set(data.map(r => r["T2"]).filter(Boolean))].sort();
-      const productTypes = [...new Set(data.map(r => r["T3"]).filter(Boolean))].sort();
-      
-      populateSelect('filter-t1', categories, 'All Categories');
-      populateSelect('filter-t2', subCategories, 'All Sub-categories');
-      populateSelect('filter-t3', productTypes, 'All Product Types');
-      
-      populateSelect('filter-t1-mobile', categories, 'All Categories');
-    }
-    
-    function populateSelect(id, options, defaultText) {
-      const select = document.getElementById(id);
-      if (!select) return;
-      
-      select.innerHTML = `<option value="">${defaultText}</option>`;
-      options.forEach(opt => {
-        const option = document.createElement("option");
-        option.value = opt;
-        option.textContent = opt;
-        select.appendChild(option);
-      });
-    }
+    // Instantiate controller for #mapContainer
+    (function(){
+      const container = document.getElementById('mapContainer');
+      const controller = new MapController(container, { initialScale: 1, minScale: 0.3, maxScale: 6 });
 
-    const debouncedFilter = debounce(applyFilters, 300);
-
-    function applyFilters() {
-      if (!svgElement || !Object.keys(boothMap).length) return;
-
-      const getFilterValue = (id) => {
-        const el = document.getElementById(id);
-        return el ? el.value.toLowerCase().trim() : '';
-      };
-      
-      const getCheckbox = (id) => {
-        const el = document.getElementById(id);
-        return el ? el.checked : false;
-      };
-
-      const filters = {
-        company: getFilterValue(isMobile ? 'filter-company-mobile' : 'filter-company'),
-        t1: getFilterValue(isMobile ? 'filter-t1-mobile' : 'filter-t1'),
-        t2: getFilterValue('filter-t2'),
-        t3: getFilterValue('filter-t3'),
-        product: getFilterValue('filter-product'),
-        vip: getCheckbox(isMobile ? 'filter-vip-mobile' : 'filter-vip'),
-        o2o: getCheckbox(isMobile ? 'filter-o2o-mobile' : 'filter-o2o')
-      };
-
-      const hasActiveFilters = filters.company || filters.t1 || filters.t2 || filters.t3 || filters.product || filters.vip || filters.o2o;
-      let visibleCount = 0;
-
-      boothElements.forEach((el, boothId) => {
-        const booth = boothMap[boothId];
-        
-        if (!booth) {
-          el.classList.add("booth-dimmed");
-          el.classList.remove("booth-highlighted");
-          return;
-        }
-
-        let match = true;
-        
-        const isVIP = String(booth["VIP"] || "").toLowerCase() === "yes" || String(booth["VIP"] || "").toLowerCase() === "y";
-        const isO2O = String(booth["O2O"] || "").toLowerCase() === "yes" || String(booth["O2O"] || "").toLowerCase() === "y";
-
-        if (hasActiveFilters) {
-          if (filters.company && !(booth["Company name"] || "").toLowerCase().includes(filters.company)) match = false;
-          if (filters.t1 && !(booth["T1"] || "").toLowerCase().includes(filters.t1)) match = false;
-          if (filters.t2 && !(booth["T2"] || "").toLowerCase().includes(filters.t2)) match = false;
-          if (filters.t3 && !(booth["T3"] || "").toLowerCase().includes(filters.t3)) match = false;
-          if (filters.product && !(booth["Exhibited products"] || "").toLowerCase().includes(filters.product)) match = false;
-          if (filters.vip && !isVIP) match = false;
-          if (filters.o2o && !isO2O) match = false;
-        }
-
-        if (match) {
-          el.classList.remove("booth-dimmed");
-          if (hasActiveFilters) {
-            el.classList.add("booth-highlighted");
-          } else {
-            el.classList.remove("booth-highlighted");
-          }
-          visibleCount++;
-        } else {
-          el.classList.add("booth-dimmed");
-          el.classList.remove("booth-highlighted");
-        }
-      });
-
-      updateStats(visibleCount);
-    }
-
-    function resetFilters() {
-      const ids = [
-        'filter-company', 'filter-product', 'quick-search',
-        'filter-company-mobile', 'quick-search-mobile'
-      ];
-      ids.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = "";
-      });
-      
-      ['filter-t1', 'filter-t2', 'filter-t3', 'filter-t1-mobile'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = "";
-      });
-      
-      ['filter-vip', 'filter-o2o', 'filter-vip-mobile', 'filter-o2o-mobile'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.checked = false;
-      });
-      
-      if (selectedBoothId && boothElements.has(selectedBoothId)) {
-        boothElements.get(selectedBoothId).classList.remove("booth-selected");
-      }
-      selectedBoothId = null;
-      
-      ['info-panel', 'info-panel-mobile'].forEach(id => {
-        document.getElementById(id)?.classList.add('hidden');
-      });
-      
-      applyFilters();
-    }
-
-    function updateStats(visible = null) {
-      const total = Object.keys(boothMap).length;
-      const svgBooths = boothElements.size;
-      
-      const text = visible !== null 
-        ? `${visible} of ${total} exhibitors visible`
-        : `${total} exhibitors | ${svgBooths} booths`;
-      
-      const statsEl = document.getElementById('stats');
-      const statsMobileEl = document.getElementById('stats-mobile');
-      if (statsEl) statsEl.textContent = text;
-      if (statsMobileEl) statsMobileEl.textContent = text;
-    }
-
-    // ==================== QUICK SEARCH ====================
-    function quickSearch(query) {
-      query = query.trim().toUpperCase();
-      if (!query) return;
-
-      if (boothElements.has(query)) {
-        const booth = boothMap[query];
-        if (booth) {
-          selectBooth(query, booth);
-          setStatus(`✅ Found: ${query}`, "success");
-        }
-      } else {
-        setStatus(`❌ Not found: ${query}`, "warning");
-      }
-    }
-
-    // ==================== EVENT LISTENERS ====================
-    document.getElementById("reset-filters")?.addEventListener("click", resetFilters);
-    document.getElementById("reset-filters-mobile")?.addEventListener("click", resetFilters);
-    document.getElementById("reset-zoom")?.addEventListener("click", resetZoom);
-    document.getElementById("reset-zoom-mobile")?.addEventListener("click", resetZoom);
-    
-    document.getElementById("zoom-in")?.addEventListener("click", () => zoom(0.8));
-    document.getElementById("zoom-out")?.addEventListener("click", () => zoom(1.2));
-    document.getElementById("zoom-reset")?.addEventListener("click", resetZoom);
-
-    ["filter-company", "filter-product", "filter-company-mobile"].forEach(id => {
-      document.getElementById(id)?.addEventListener("input", debouncedFilter);
-    });
-    
-    ["filter-t1", "filter-t2", "filter-t3", "filter-t1-mobile"].forEach(id => {
-      document.getElementById(id)?.addEventListener("change", applyFilters);
-    });
-    
-    ["filter-vip", "filter-o2o", "filter-vip-mobile", "filter-o2o-mobile"].forEach(id => {
-      document.getElementById(id)?.addEventListener("change", applyFilters);
-    });
-
-    document.getElementById("quick-search")?.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") quickSearch(e.target.value);
-    });
-    
-    document.getElementById("quick-search-mobile")?.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") quickSearch(e.target.value);
-    });
-
-    window.addEventListener('resize', () => {
-      isMobile = window.innerWidth <= 768;
-    });
-
-    // ==================== ADMIN UPLOAD FALLBACK ====================
-    let adminSvgFile = null;
-    let adminDataFile = null;
-    
-    document.getElementById('admin-upload-btn')?.addEventListener('click', () => {
-      document.getElementById('admin-modal').classList.remove('hidden');
-    });
-    
-    document.getElementById('admin-modal-close')?.addEventListener('click', () => {
-      document.getElementById('admin-modal').classList.add('hidden');
-    });
-    
-    document.getElementById('admin-svg-upload')?.addEventListener('change', (e) => {
-      adminSvgFile = e.target.files[0];
-      console.log('Admin SVG selected:', adminSvgFile?.name);
-    });
-    
-    document.getElementById('admin-data-upload')?.addEventListener('change', (e) => {
-      adminDataFile = e.target.files[0];
-      console.log('Admin Data selected:', adminDataFile?.name);
-    });
-    
-    document.getElementById('admin-modal-load')?.addEventListener('click', async () => {
-      if (!adminSvgFile || !adminDataFile) {
-        alert('Please select both SVG and Data files');
-        return;
-      }
-      
-      document.getElementById('admin-modal').classList.add('hidden');
-      showLoading('Loading uploaded files...', 'Processing...');
-      
-      try {
-        // Load SVG
-        const svgText = await adminSvgFile.text();
-        document.getElementById("svg-wrapper").innerHTML = svgText;
-        svgElement = document.querySelector("#svg-wrapper svg");
-        
-        if (!svgElement) throw new Error("Invalid SVG file");
-        
-        svgElement.style.width = "100%";
-        svgElement.style.height = "100%";
-        svgElement.style.cursor = "grab";
-        
-        initPanZoom();
-        cacheBoothElements();
-        
-        // Load Data
-        let jsonData;
-        if (adminDataFile.name.endsWith('.csv')) {
-          const text = await adminDataFile.text();
-          const parsed = Papa.parse(text, {
-            header: true,
-            delimiter: ";",
-            skipEmptyLines: true,
-            encoding: "UTF-8"
-          });
-          jsonData = parsed.data;
-        } else {
-          const data = await adminDataFile.arrayBuffer();
-          const workbook = XLSX.read(data, { type: "array" });
-          const sheetName = workbook.SheetNames[0];
-          jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-        }
-        
-        boothData = jsonData;
-        buildBoothMap(jsonData);
-        populateFilters(jsonData);
-        bindBooths();
-        
-        setStatus('✅ Files loaded successfully', 'success');
-        hideLoading();
-        
-      } catch (error) {
-        console.error('Upload error:', error);
-        alert('Error loading files: ' + error.message);
-        hideLoading();
-      }
-    });
-
-    // ==================== INITIALIZE ====================
-    async function init() {
-      console.log('🚀 Exhibition Navigator v2.1 - Initializing...');
-      console.log('📁 Looking for files in:', window.location.origin);
-      console.log('📂 SVG files to try:', CONFIG.svgFiles);
-      console.log('📂 Data files to try:', CONFIG.dataFiles);
-      
-      showLoading('Loading exhibition data...', 'Checking for files...');
-      
-      const svgLoaded = await loadSVGFromServer();
-      const dataLoaded = await loadDataFromServer();
-      
-      if (svgLoaded && dataLoaded) {
-        bindBooths();
-        setStatus('✅ Exhibition ready', 'success');
-        console.log('✅ ALL SYSTEMS GO!');
-      } else if (svgLoaded) {
-        setStatus('⚠️ Map loaded, data missing', 'warning');
-        if (CONFIG.enableAdminUpload) {
-          document.getElementById('admin-upload-btn')?.classList.remove('hidden');
-        }
-      } else {
-        setStatus('❌ Failed to load files', 'warning');
-        if (CONFIG.enableAdminUpload) {
-          document.getElementById('admin-upload-btn')?.classList.remove('hidden');
-        }
-        console.error('❌ INITIALIZATION FAILED');
-        console.error('Make sure files are in the root directory of your GitHub repo');
-        console.error('Vercel deploys from: https://exhibition-navigator.vercel.app/FILENAME');
-      }
-      
-      hideLoading();
-    }
-
-    if (CONFIG.autoLoad) {
-      // Wait for DOM to be ready
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-      } else {
-        init();
-      }
-    }
+      // expose on window for debugging if needed (optional)
+      window._MapController = controller;
+    })();
   </script>
 </body>
 </html>
