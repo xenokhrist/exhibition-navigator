@@ -90,7 +90,7 @@
 <header class="glass p-4 shadow-lg">
   <div class="flex justify-between items-center max-w-screen-2xl mx-auto">
     <div>
-      <h1 class="text-2xl font-bold">🗺️ Super Sector - Exhibition Navigator for China Homelife Nov 2025</h1>
+      <h1 class="text-2xl font-bold">🗺️ Exhibition Navigator</h1>
       <p id="status" class="text-sm text-gray-600 mt-1">Upload files to begin</p>
     </div>
     <div class="flex gap-3">
@@ -213,7 +213,7 @@
 
 <!-- Footer -->
 <footer class="footer">
-  Made with ❤️ by <a href="#" target="_blank">Firman Khristian</a>
+  Made with ❤️ by <a href="#" target="_blank">Your Team</a> | Powered by Claude AI
 </footer>
 
 <script>
@@ -586,7 +586,21 @@ function selectBooth(id, booth) {
   const content = document.getElementById('info-content');
   
   panel.classList.remove('hidden');
-  title.textContent = booth['Company name'] || 'Booth ' + id;
+  
+  // Company title with clickable link (Column U - Company Website)
+  const companyWebsite = booth['Company Website'] || booth['Company website'] || booth['website'] || '';
+  const companyName = booth['Company name'] || 'Booth ' + id;
+  
+  if (companyWebsite) {
+    title.innerHTML = `<a href="${companyWebsite}" target="_blank" rel="noopener noreferrer" class="text-gray-900 hover:text-blue-600 transition-colors cursor-pointer inline-flex items-center gap-2">
+      ${companyName}
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+      </svg>
+    </a>`;
+  } else {
+    title.textContent = companyName;
+  }
   
   let html = '<div class="space-y-3 text-sm">';
   
@@ -643,10 +657,6 @@ function selectBooth(id, booth) {
       <div class="font-bold text-blue-900 mb-2">🏷️ Exhibited Products:</div>
       <div class="text-blue-800 leading-relaxed">${products}</div>
     </div>`;
-  } else {
-    // Debug: show all available fields
-    console.log('⚠️ No products found for booth:', id);
-    console.log('Available fields:', Object.keys(booth));
   }
   
   // Exhibition Area
@@ -680,9 +690,21 @@ function selectBooth(id, booth) {
     </div>`;
   }
   
-  // Website Link
-  if (booth['International station link']) {
-    html += `<a href="${booth['International station link']}" target="_blank" class="block w-full text-center btn btn-primary mt-4">🌐 Visit Website</a>`;
+  // Website Links - Show both if available
+  const internationalLink = booth['International station link'] || booth['International Station Link'] || '';
+  
+  if (companyWebsite || internationalLink) {
+    html += '<div class="mt-4 space-y-2">';
+    
+    if (companyWebsite) {
+      html += `<a href="${companyWebsite}" target="_blank" rel="noopener noreferrer" class="block w-full text-center btn btn-primary">🌐 Company Website</a>`;
+    }
+    
+    if (internationalLink && internationalLink !== companyWebsite) {
+      html += `<a href="${internationalLink}" target="_blank" rel="noopener noreferrer" class="block w-full text-center btn btn-primary">🔗 International Page</a>`;
+    }
+    
+    html += '</div>';
   }
   
   html += '</div>';
