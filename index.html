@@ -13,12 +13,32 @@
   .badge-vip { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
   .badge-o2o { background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
   .badge-both { background: linear-gradient(135deg, #fbbf24 0%, #10b981 100%); color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
+  .badge-vip-pro { background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
   #svg-wrapper svg { cursor: grab; max-width: 100%; max-height: 100%; }
   #svg-wrapper svg:active { cursor: grabbing; }
   .info-highlight { background: #dbeafe; padding: 12px; border-radius: 8px; border-left: 4px solid #3b82f6; margin: 8px 0; }
   .btn { padding: 10px 20px; border-radius: 8px; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none; }
   .btn-primary { background: #1f2937; color: white; }
   .btn-primary:hover { background: #374151; }
+  
+  /* Top Exhibitor Card */
+  .top-exhibitor-card {
+    background: white;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: all 0.2s;
+    border-left: 4px solid transparent;
+  }
+  .top-exhibitor-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+  .top-exhibitor-card.rank-1 { border-left-color: #fbbf24; }
+  .top-exhibitor-card.rank-2 { border-left-color: #10b981; }
+  .top-exhibitor-card.rank-3 { border-left-color: #3b82f6; }
   
   /* Tooltip */
   .tooltip {
@@ -177,8 +197,18 @@
       <div id="info-content"></div>
     </div>
 
+    <!-- Top 3 Exhibitors Section -->
+    <div class="mt-6 p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+      <p class="text-xs font-bold text-blue-800 mb-3 flex items-center gap-2">
+        🏆 TOP 3 EXHIBITORS
+      </p>
+      <div id="top-exhibitors">
+        <p class="text-sm text-gray-500">No data loaded</p>
+      </div>
+    </div>
+
     <!-- Stats -->
-    <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+    <div class="mt-4 p-4 bg-blue-50 rounded-lg">
       <p class="text-xs font-bold text-blue-800">STATISTICS</p>
       <p id="stats" class="text-sm text-blue-900 mt-1">No data</p>
     </div>
@@ -239,6 +269,69 @@ const CONFIG = {
 function setStatus(msg) {
   document.getElementById('status').textContent = msg;
   console.log('[STATUS]', msg);
+}
+
+// Get Top 3 Exhibitors based on priority
+function getTop3Exhibitors() {
+  const exhibitors = Object.entries(boothMap).map(([id, booth]) => ({
+    id,
+    company: booth['Company name'] || 'N/A',
+    booth: booth['Stand_no'],
+    isVIPPro: booth['VIP-Pro'] == 1,
+    isVIP: booth['VIP'] == 1,
+    isO2O: booth['O2O'] == 1,
+    ...booth
+  }));
+
+  // Priority: VIP-Pro > VIP+O2O > VIP > O2O > Regular
+  exhibitors.sort((a, b) => {
+    if (a.isVIPPro !== b.isVIPPro) return b.isVIPPro - a.isVIPPro;
+    if ((a.isVIP && a.isO2O) !== (b.isVIP && b.isO2O)) return (b.isVIP && b.isO2O) - (a.isVIP && a.isO2O);
+    if (a.isVIP !== b.isVIP) return b.isVIP - a.isVIP;
+    if (a.isO2O !== b.isO2O) return b.isO2O - a.isO2O;
+    return 0;
+  });
+
+  return exhibitors.slice(0, 3);
+}
+
+// Update Top 3 Exhibitors Display
+function updateTop3Display() {
+  const container = document.getElementById('top-exhibitors');
+  const top3 = getTop3Exhibitors();
+
+  if (top3.length === 0) {
+    container.innerHTML = '<p class="text-sm text-gray-500">No exhibitors found</p>';
+    return;
+  }
+
+  const medals = ['🥇', '🥈', '🥉'];
+  
+  container.innerHTML = top3.map((exhibitor, index) => {
+    let badge = '';
+    if (exhibitor.isVIPPro) {
+      badge = '<span class="badge-vip-pro">👑 VIP-Pro</span>';
+    } else if (exhibitor.isVIP && exhibitor.isO2O) {
+      badge = '<span class="badge-both">⭐🔗 VIP+O2O</span>';
+    } else if (exhibitor.isVIP) {
+      badge = '<span class="badge-vip">⭐ VIP</span>';
+    } else if (exhibitor.isO2O) {
+      badge = '<span class="badge-o2o">🔗 O2O</span>';
+    }
+
+    return `
+      <div class="top-exhibitor-card rank-${index + 1}" onclick="selectBooth('${exhibitor.id}', boothMap['${exhibitor.id}'])">
+        <div class="flex items-start gap-2">
+          <span class="text-2xl">${medals[index]}</span>
+          <div class="flex-1">
+            <div class="font-semibold text-sm text-gray-800 mb-1">${exhibitor.company}</div>
+            <div class="text-xs text-gray-600 mb-2">📍 Booth: ${exhibitor.booth}</div>
+            ${badge ? `<div>${badge}</div>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 // SVG Upload (Manual)
@@ -391,22 +484,25 @@ async function loadDataFromFile(fileOrUrl) {
     
     // Build map
     boothMap = {};
-    let vipCount = 0, o2oCount = 0, bothCount = 0;
+    let vipCount = 0, o2oCount = 0, bothCount = 0, vipProCount = 0;
     
     jsonData.forEach(row => {
       const id = String(row['Stand_no'] || '').trim().toUpperCase();
       if (!id) return;
       
+      // VIP-Pro: Column V, value 1 or '1'
+      const isVIPPro = row['VIP-Pro'] == 1 || String(row['VIP-Pro']).toLowerCase() === 'yes';
       // VIP: Column T, value 1 or '1'
       const isVIP = row['VIP'] == 1 || String(row['VIP']).toLowerCase() === 'yes';
       // O2O: Column M, value 1 or '1'
       const isO2O = row['O2O'] == 1 || String(row['O2O']).toLowerCase() === 'yes';
       
+      if (isVIPPro) vipProCount++;
       if (isVIP && isO2O) bothCount++;
       else if (isVIP) vipCount++;
       else if (isO2O) o2oCount++;
       
-      boothMap[id] = {...row, isVIP, isO2O};
+      boothMap[id] = {...row, isVIPPro, isVIP, isO2O};
       
       // Debug: Log first booth with products
       if (bothCount + vipCount + o2oCount === 1 && row['Exhibited products']) {
@@ -430,8 +526,17 @@ async function loadDataFromFile(fileOrUrl) {
     populateSelect('filter-t2', t2);
     populateSelect('filter-t3', t3);
     
-    document.getElementById('stats').textContent = 
-      `${jsonData.length} exhibitors | ${bothCount} VIP+O2O | ${vipCount} VIP | ${o2oCount} O2O`;
+    // Update statistics
+    let statsText = `${jsonData.length} exhibitors`;
+    if (vipProCount > 0) statsText += ` | ${vipProCount} VIP-Pro`;
+    if (bothCount > 0) statsText += ` | ${bothCount} VIP+O2O`;
+    if (vipCount > 0) statsText += ` | ${vipCount} VIP`;
+    if (o2oCount > 0) statsText += ` | ${o2oCount} O2O`;
+    
+    document.getElementById('stats').textContent = statsText;
+    
+    // Update Top 3 Display
+    updateTop3Display();
     
     const filename = fileOrUrl instanceof File ? fileOrUrl.name : fileOrUrl;
     setStatus(`✅ Loaded ${jsonData.length} exhibitors from ${filename}`);
@@ -491,7 +596,9 @@ function showTooltip(e, booth) {
   const tooltip = document.getElementById('tooltip');
   
   let badges = '';
-  if (booth.isVIP && booth.isO2O) {
+  if (booth.isVIPPro) {
+    badges = '<span class="badge-vip-pro">👑 VIP-Pro</span>';
+  } else if (booth.isVIP && booth.isO2O) {
     badges = '<span class="badge-both">⭐🔗 VIP+O2O</span>';
   } else if (booth.isVIP) {
     badges = '<span class="badge-vip">⭐ VIP</span>';
@@ -539,389 +646,4 @@ function applyFilters() {
   const filters = {
     company: document.getElementById('filter-company').value.toLowerCase(),
     t1: document.getElementById('filter-t1').value,
-    t2: document.getElementById('filter-t2').value,
-    t3: document.getElementById('filter-t3').value,
-    product: document.getElementById('filter-product').value.toLowerCase(),
-    vip: document.getElementById('filter-vip').checked,
-    o2o: document.getElementById('filter-o2o').checked,
-    both: document.getElementById('filter-both').checked
-  };
-  
-  const elements = svgElement.querySelectorAll('[id], text');
-  let visible = 0;
-  
-  elements.forEach(el => {
-    let id = el.id || el.textContent?.trim();
-    if (!id) return;
-    
-    id = id.toUpperCase();
-    const booth = boothMap[id];
-    
-    if (!booth) return;
-    
-    let match = true;
-    
-    // Text filters
-    if (filters.company && !booth['Company name']?.toLowerCase().includes(filters.company)) match = false;
-    if (filters.t1 && booth['T1'] !== filters.t1) match = false;
-    if (filters.t2 && booth['T2'] !== filters.t2) match = false;
-    if (filters.t3 && booth['T3'] !== filters.t3) match = false;
-    
-    // Products filter - searches in "Exhibited products" column (Column H)
-    if (filters.product) {
-      const exhibitedProducts = booth['Exhibited products'] || 
-                                booth['Exhibited Products'] || 
-                                booth['exhibited products'] ||
-                                booth['Exhibition products'] ||
-                                booth['Products'] ||
-                                booth['产品'] ||
-                                '';
-      if (!exhibitedProducts.toLowerCase().includes(filters.product)) {
-        match = false;
-      }
-    }
-    
-    // Badge filters
-    if (filters.both && !(booth.isVIP && booth.isO2O)) match = false;
-    if (filters.vip && !filters.both && !booth.isVIP) match = false;
-    if (filters.o2o && !filters.both && !booth.isO2O) match = false;
-    
-    if (!match) {
-      el.style.opacity = '0.1';
-      el.style.filter = 'grayscale(1)';
-      return;
-    }
-    
-    visible++;
-    el.style.opacity = '1';
-    el.style.filter = '';
-    
-    // VIP+O2O (Both) - Special star effect
-    if (booth.isVIP && booth.isO2O) {
-      el.style.filter = 'drop-shadow(0 0 12px #fbbf24) drop-shadow(0 0 12px #10b981) brightness(1.4)';
-      el.style.stroke = '#fbbf24';
-      el.style.strokeWidth = '4';
-    }
-    // VIP only
-    else if (booth.isVIP) {
-      el.style.filter = 'drop-shadow(0 0 10px #fbbf24) brightness(1.3)';
-      el.style.stroke = '#fbbf24';
-      el.style.strokeWidth = '3';
-    }
-    // O2O only
-    else if (booth.isO2O) {
-      el.style.filter = 'drop-shadow(0 0 8px #10b981) brightness(1.2)';
-      el.style.stroke = '#10b981';
-      el.style.strokeWidth = '2';
-    }
-    
-    // Selected booth
-    if (selectedBooth && id === selectedBooth.id) {
-      el.style.filter = 'drop-shadow(0 0 15px #f59e0b) brightness(1.5)';
-      el.style.stroke = '#f59e0b';
-      el.style.strokeWidth = '5';
-    }
-  });
-  
-  document.getElementById('stats').textContent = `${visible} of ${Object.keys(boothMap).length} visible`;
-}
-
-function debounceFilter() {
-  clearTimeout(filterTimeout);
-  filterTimeout = setTimeout(applyFilters, 300);
-}
-
-// Select booth
-function selectBooth(id, booth) {
-  selectedBooth = {id, ...booth};
-  
-  const panel = document.getElementById('info-panel');
-  const title = document.getElementById('info-title');
-  const content = document.getElementById('info-content');
-  
-  panel.classList.remove('hidden');
-  
-  // Company title with clickable link (Column U - Company Website)
-  const companyWebsite = booth['Company Website'] || booth['Company website'] || booth['website'] || '';
-  const companyName = booth['Company name'] || 'Booth ' + id;
-  
-  if (companyWebsite) {
-    title.innerHTML = `<a href="${companyWebsite}" target="_blank" rel="noopener noreferrer" class="text-gray-900 hover:text-blue-600 transition-colors cursor-pointer inline-flex items-center gap-2">
-      ${companyName}
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-      </svg>
-    </a>`;
-  } else {
-    title.textContent = companyName;
-  }
-  
-  let html = '<div class="space-y-3 text-sm">';
-  
-  // Badges
-  if (booth.isVIP || booth.isO2O) {
-    html += '<div class="flex gap-2 mb-3">';
-    if (booth.isVIP && booth.isO2O) {
-      html += '<span class="badge-both">⭐🔗 VIP+O2O</span>';
-    } else {
-      if (booth.isVIP) html += '<span class="badge-vip">⭐ VIP</span>';
-      if (booth.isO2O) html += '<span class="badge-o2o">🔗 O2O</span>';
-    }
-    html += '</div>';
-  }
-  
-  html += `<div class="py-2 border-b font-semibold">📍 Booth: ${booth['Stand_no']}</div>`;
-  
-  // Category (T1) - HIGHLIGHTED
-  if (booth['T1']) {
-    html += `<div class="info-highlight">
-      <div class="font-bold text-blue-900 mb-1">📂 Category (T1):</div>
-      <div class="text-blue-800 text-base">${booth['T1']}</div>
-    </div>`;
-  }
-  
-  // Sub-category (T2)
-  if (booth['T2']) {
-    html += `<div class="py-2 border-b">
-      <div class="font-semibold text-gray-700">Sub-category (T2):</div>
-      <div class="text-gray-900 mt-1">${booth['T2']}</div>
-    </div>`;
-  }
-  
-  // Product Type (T3)
-  if (booth['T3']) {
-    html += `<div class="py-2 border-b">
-      <div class="font-semibold text-gray-700">Product Type (T3):</div>
-      <div class="text-gray-900 mt-1">${booth['T3']}</div>
-    </div>`;
-  }
-  
-  // Products (Column H) - HIGHLIGHTED
-  // Try multiple possible column names
-  const products = booth['Exhibited products'] || 
-                   booth['Exhibited Products'] || 
-                   booth['exhibited products'] ||
-                   booth['Exhibition products'] ||
-                   booth['Products'] ||
-                   booth['产品'] || // Chinese
-                   '';
-  
-  if (products) {
-    html += `<div class="info-highlight">
-      <div class="font-bold text-blue-900 mb-2">🏷️ Exhibited Products:</div>
-      <div class="text-blue-800 leading-relaxed">${products}</div>
-    </div>`;
-  }
-  
-  // Exhibition Area
-  if (booth['Exhibition area']) {
-    html += `<div class="py-2 border-b">
-      <div class="font-semibold text-gray-700">Exhibition Area:</div>
-      <div class="text-gray-900 mt-1">${booth['Exhibition area']}</div>
-    </div>`;
-  }
-  
-  // Service Type
-  if (booth['Service type']) {
-    html += `<div class="py-2 border-b">
-      <div class="font-semibold text-gray-700">Service Type:</div>
-      <div class="text-gray-900 mt-1">${booth['Service type']}</div>
-    </div>`;
-  }
-  
-  // Dates
-  if (booth['Exhibition start time']) {
-    html += `<div class="py-2 border-b">
-      <div class="font-semibold text-gray-700">Start Date:</div>
-      <div class="text-gray-900 mt-1">${booth['Exhibition start time']}</div>
-    </div>`;
-  }
-  
-  if (booth['Exhibition end time']) {
-    html += `<div class="py-2 border-b">
-      <div class="font-semibold text-gray-700">End Date:</div>
-      <div class="text-gray-900 mt-1">${booth['Exhibition end time']}</div>
-    </div>`;
-  }
-  
-  // Website Links - Show both if available
-  const internationalLink = booth['International station link'] || booth['International Station Link'] || '';
-  
-  if (companyWebsite || internationalLink) {
-    html += '<div class="mt-4 space-y-2">';
-    
-    if (companyWebsite) {
-      html += `<a href="${companyWebsite}" target="_blank" rel="noopener noreferrer" class="block w-full text-center btn btn-primary">🌐 Company Website</a>`;
-    }
-    
-    if (internationalLink && internationalLink !== companyWebsite) {
-      html += `<a href="${internationalLink}" target="_blank" rel="noopener noreferrer" class="block w-full text-center btn btn-primary">🔗 International Page</a>`;
-    }
-    
-    html += '</div>';
-  }
-  
-  html += '</div>';
-  content.innerHTML = html;
-  
-  applyFilters();
-}
-
-// Quick search
-function quickSearch() {
-  const query = document.getElementById('quick-search').value.trim().toUpperCase();
-  if (!query) return;
-  
-  const booth = boothMap[query];
-  if (booth) {
-    selectBooth(query, booth);
-    setStatus(`✅ Found ${query}`);
-  } else {
-    setStatus(`❌ Booth ${query} not found`);
-  }
-}
-
-// Pan & Zoom
-function zoom(factor) {
-  const newW = viewBox.w * factor;
-  const newH = viewBox.h * factor;
-  viewBox.x += (viewBox.w - newW) / 2;
-  viewBox.y += (viewBox.h - newH) / 2;
-  viewBox.w = newW;
-  viewBox.h = newH;
-  updateViewBox();
-  updateMiniMapViewport();
-}
-
-function updateViewBox() {
-  if (svgElement) {
-    svgElement.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
-  }
-}
-
-function resetView() {
-  if (svgElement) {
-    const bbox = svgElement.getBBox();
-    viewBox = {x: bbox.x, y: bbox.y, w: bbox.width, h: bbox.height};
-    originalViewBox = {...viewBox};
-    updateViewBox();
-    updateMiniMapViewport();
-  }
-}
-
-function resetAll() {
-  document.getElementById('filter-company').value = '';
-  document.getElementById('filter-t1').value = '';
-  document.getElementById('filter-t2').value = '';
-  document.getElementById('filter-t3').value = '';
-  document.getElementById('filter-product').value = '';
-  document.getElementById('filter-vip').checked = false;
-  document.getElementById('filter-o2o').checked = false;
-  document.getElementById('filter-both').checked = false;
-  document.getElementById('quick-search').value = '';
-  document.getElementById('info-panel').classList.add('hidden');
-  selectedBooth = null;
-  applyFilters();
-  resetView();
-}
-
-// Pan
-document.getElementById('svg-wrapper').addEventListener('mousedown', (e) => {
-  isDragging = true;
-  dragStart = {x: e.clientX, y: e.clientY};
-});
-
-document.addEventListener('mousemove', (e) => {
-  if (!isDragging) return;
-  const dx = (e.clientX - dragStart.x) * (viewBox.w / 800);
-  const dy = (e.clientY - dragStart.y) * (viewBox.h / 600);
-  viewBox.x -= dx;
-  viewBox.y -= dy;
-  dragStart = {x: e.clientX, y: e.clientY};
-  updateViewBox();
-  updateMiniMapViewport();
-});
-
-document.addEventListener('mouseup', () => {
-  isDragging = false;
-});
-
-// Clear map function
-function clearMap() {
-  // Clear SVG
-  document.getElementById('svg-wrapper').innerHTML = '';
-  document.getElementById('placeholder').style.display = 'flex';
-  svgElement = null;
-  
-  // Clear minimap
-  document.getElementById('minimap').style.display = 'none';
-  document.getElementById('minimap-svg').innerHTML = '';
-  
-  // Hide zoom controls
-  document.getElementById('zoom-controls').style.display = 'none';
-  
-  // Clear data
-  boothMap = {};
-  boothData = [];
-  selectedBooth = null;
-  
-  // Reset filters
-  document.getElementById('filter-company').value = '';
-  document.getElementById('filter-t1').innerHTML = '<option value="">All</option>';
-  document.getElementById('filter-t2').innerHTML = '<option value="">All</option>';
-  document.getElementById('filter-t3').innerHTML = '<option value="">All</option>';
-  document.getElementById('filter-product').value = '';
-  document.getElementById('filter-vip').checked = false;
-  document.getElementById('filter-o2o').checked = false;
-  document.getElementById('filter-both').checked = false;
-  document.getElementById('quick-search').value = '';
-  
-  // Hide info panel
-  document.getElementById('info-panel').classList.add('hidden');
-  
-  // Reset file inputs
-  document.getElementById('svg-upload').value = '';
-  document.getElementById('data-upload').value = '';
-  
-  // Update status
-  document.getElementById('stats').textContent = 'No data';
-  setStatus('🗑️ Map cleared - Upload new files');
-}
-
-// Auto-load files on page load
-async function autoLoadFiles() {
-  if (!CONFIG.autoLoad) return;
-  
-  console.log('🚀 Auto-loading files from server...');
-  setStatus('🔄 Loading from server...');
-  
-  // Try to load SVG
-  console.log('📄 Loading SVG:', CONFIG.svgFile);
-  const svgLoaded = await loadSVGFromFile(CONFIG.svgFile);
-  
-  // Try to load Data
-  console.log('📊 Loading Data:', CONFIG.dataFile);
-  const dataLoaded = await loadDataFromFile(CONFIG.dataFile);
-  
-  if (svgLoaded && dataLoaded) {
-    setStatus('✅ Exhibition ready!');
-    console.log('✅ Auto-load complete!');
-  } else if (!svgLoaded && !dataLoaded) {
-    setStatus('⚠️ Files not found on server - Use upload buttons');
-    console.log('⚠️ Files not found. Make sure map.svg and Sellers.xlsx are in the root directory.');
-  } else if (!svgLoaded) {
-    setStatus('⚠️ SVG not found - Upload manually');
-  } else {
-    setStatus('⚠️ Data file not found - Upload manually');
-  }
-}
-
-// Initialize on page load
-window.addEventListener('DOMContentLoaded', () => {
-  console.log('📁 CONFIG:', CONFIG);
-  autoLoadFiles();
-});
-</script>
-
-</body>
-</html>
+    t2:
