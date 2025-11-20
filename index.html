@@ -40,7 +40,6 @@
   .top-exhibitor-card.rank-2 { border-left-color: #10b981; }
   .top-exhibitor-card.rank-3 { border-left-color: #3b82f6; }
   
-  /* Tooltip */
   .tooltip {
     position: fixed;
     background: rgba(0, 0, 0, 0.92);
@@ -56,7 +55,6 @@
     border: 1px solid rgba(255,255,255,0.1);
   }
   
-  /* Mini Map */
   .minimap {
     position: absolute;
     bottom: 80px;
@@ -81,7 +79,6 @@
     pointer-events: none;
   }
   
-  /* Footer */
   .footer {
     position: fixed;
     bottom: 0;
@@ -106,7 +103,6 @@
 </head>
 <body>
 
-<!-- Header -->
 <header class="glass p-4 shadow-lg">
   <div class="flex justify-between items-center max-w-screen-2xl mx-auto">
     <div>
@@ -117,24 +113,21 @@
       <button onclick="clearMap()" class="btn btn-primary bg-red-600 hover:bg-red-700">🗑️ Clear</button>
       <button onclick="document.getElementById('svg-upload').click()" class="btn btn-primary">📄 SVG</button>
       <button onclick="document.getElementById('data-upload').click()" class="btn btn-primary">📊 Data</button>
-      <input id="svg-upload" type="file" accept=".svg" style="display:none">
-      <input id="data-upload" type="file" accept=".csv,.xlsx,.xls" style="display:none">
+      <input id="svg-upload" type="file" accept=".svg" style="display:none" onchange="handleSVGUpload(event)">
+      <input id="data-upload" type="file" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleDataUpload(event)">
     </div>
   </div>
 </header>
 
 <div class="flex h-screen">
-  <!-- Sidebar -->
   <aside class="w-80 glass p-4 overflow-y-auto">
     <h2 class="text-lg font-semibold mb-4">🔍 Search & Filter</h2>
     
-    <!-- Quick Search -->
     <div class="mb-4">
       <label class="text-sm font-medium">Quick Find Booth</label>
       <input id="quick-search" type="text" placeholder="e.g., A3C101" class="w-full mt-2 px-3 py-2 border rounded-lg" onkeypress="if(event.key==='Enter') quickSearch()">
     </div>
 
-    <!-- VIP & O2O Filters -->
     <div class="mb-4">
       <label class="text-sm font-medium">Type</label>
       <div class="mt-2 space-y-2">
@@ -153,13 +146,11 @@
       </div>
     </div>
 
-    <!-- Company -->
     <div class="mb-4">
       <label class="text-sm font-medium">Company</label>
       <input id="filter-company" type="text" placeholder="Search..." class="w-full mt-2 px-3 py-2 border rounded-lg" oninput="debounceFilter()">
     </div>
 
-    <!-- Category T1 -->
     <div class="mb-4">
       <label class="text-sm font-medium">Category (T1)</label>
       <select id="filter-t1" class="w-full mt-2 px-3 py-2 border rounded-lg" onchange="applyFilters()">
@@ -167,7 +158,6 @@
       </select>
     </div>
 
-    <!-- Sub-category T2 -->
     <div class="mb-4">
       <label class="text-sm font-medium">Sub-category (T2)</label>
       <select id="filter-t2" class="w-full mt-2 px-3 py-2 border rounded-lg" onchange="applyFilters()">
@@ -175,7 +165,6 @@
       </select>
     </div>
 
-    <!-- Product Type T3 -->
     <div class="mb-4">
       <label class="text-sm font-medium">Product Type (T3)</label>
       <select id="filter-t3" class="w-full mt-2 px-3 py-2 border rounded-lg" onchange="applyFilters()">
@@ -183,7 +172,6 @@
       </select>
     </div>
 
-    <!-- Products -->
     <div class="mb-4">
       <label class="text-sm font-medium">Products</label>
       <input id="filter-product" type="text" placeholder="Search products..." class="w-full mt-2 px-3 py-2 border rounded-lg" oninput="debounceFilter()">
@@ -191,13 +179,11 @@
 
     <button onclick="resetAll()" class="w-full btn btn-primary">Reset All</button>
 
-    <!-- Info Panel -->
     <div id="info-panel" class="mt-6 p-4 bg-white rounded-lg shadow-lg hidden">
       <h3 id="info-title" class="font-bold text-lg mb-3"></h3>
       <div id="info-content"></div>
     </div>
 
-    <!-- Top 3 Exhibitors Section -->
     <div class="mt-6 p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg border border-blue-200">
       <p class="text-xs font-bold text-blue-800 mb-3 flex items-center gap-2">
         🏆 TOP 3 EXHIBITORS
@@ -207,26 +193,21 @@
       </div>
     </div>
 
-    <!-- Stats -->
     <div class="mt-4 p-4 bg-blue-50 rounded-lg">
       <p class="text-xs font-bold text-blue-800">STATISTICS</p>
       <p id="stats" class="text-sm text-blue-900 mt-1">No data</p>
     </div>
   </aside>
 
-  <!-- Map -->
   <main class="flex-1 relative">
     <div id="svg-wrapper" class="w-full h-full"></div>
     
-    <!-- Tooltip -->
     <div id="tooltip" class="tooltip"></div>
     
-    <!-- Mini Map -->
     <div id="minimap" class="minimap">
       <svg id="minimap-svg"></svg>
     </div>
     
-    <!-- Zoom Controls -->
     <div id="zoom-controls" class="absolute bottom-4 right-4 flex flex-col gap-2" style="display:none">
       <button onclick="zoom(0.8)" class="w-12 h-12 bg-white rounded-lg shadow-lg text-xl font-bold hover:bg-gray-50">+</button>
       <button onclick="zoom(1.2)" class="w-12 h-12 bg-white rounded-lg shadow-lg text-xl font-bold hover:bg-gray-50">−</button>
@@ -242,7 +223,6 @@
   </main>
 </div>
 
-<!-- Footer -->
 <footer class="footer">
   Made with ❤️ by <a href="#" target="_blank">Firman Khristian</a>
 </footer>
@@ -258,32 +238,22 @@ let isDragging = false;
 let dragStart = {x:0, y:0};
 let filterTimeout = null;
 
-// CONFIG - Files on server (GitHub raw URLs)
-const CONFIG = {
-  svgFile: 'https://raw.githubusercontent.com/xenokhrist/exhibition-navigator/main/map.svg',
-  dataFile: 'https://raw.githubusercontent.com/xenokhrist/exhibition-navigator/main/Sellers.xlsx',
-  autoLoad: true
-};
-
-// Status
 function setStatus(msg) {
   document.getElementById('status').textContent = msg;
   console.log('[STATUS]', msg);
 }
 
-// Get Top 3 Exhibitors based on priority
 function getTop3Exhibitors() {
   const exhibitors = Object.entries(boothMap).map(([id, booth]) => ({
     id,
     company: booth['Company name'] || 'N/A',
     booth: booth['Stand_no'],
     isVIPPro: booth['VIP-Pro'] == 1,
-    isVIP: booth['VIP'] == 1,
-    isO2O: booth['O2O'] == 1,
+    isVIP: booth.isVIP,
+    isO2O: booth.isO2O,
     ...booth
   }));
 
-  // Priority: VIP-Pro > VIP+O2O > VIP > O2O > Regular
   exhibitors.sort((a, b) => {
     if (a.isVIPPro !== b.isVIPPro) return b.isVIPPro - a.isVIPPro;
     if ((a.isVIP && a.isO2O) !== (b.isVIP && b.isO2O)) return (b.isVIP && b.isO2O) - (a.isVIP && a.isO2O);
@@ -295,7 +265,6 @@ function getTop3Exhibitors() {
   return exhibitors.slice(0, 3);
 }
 
-// Update Top 3 Exhibitors Display
 function updateTop3Display() {
   const container = document.getElementById('top-exhibitors');
   const top3 = getTop3Exhibitors();
@@ -320,7 +289,7 @@ function updateTop3Display() {
     }
 
     return `
-      <div class="top-exhibitor-card rank-${index + 1}" onclick="selectBooth('${exhibitor.id}', boothMap['${exhibitor.id}'])">
+      <div class="top-exhibitor-card rank-${index + 1}" onclick="selectBoothFromTop('${exhibitor.id}')">
         <div class="flex items-start gap-2">
           <span class="text-2xl">${medals[index]}</span>
           <div class="flex-1">
@@ -334,26 +303,26 @@ function updateTop3Display() {
   }).join('');
 }
 
-// SVG Upload (Manual)
-document.getElementById('svg-upload').onchange = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  await loadSVGFromFile(file);
-};
+function selectBoothFromTop(id) {
+  const booth = boothMap[id];
+  if (booth) {
+    selectBooth(id, booth);
+  }
+}
 
-// Load SVG from file or URL
-async function loadSVGFromFile(file) {
+async function handleSVGUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
   try {
-    // Clear previous SVG completely
+    const text = await file.text();
     const wrapper = document.getElementById('svg-wrapper');
     wrapper.innerHTML = '';
     svgElement = null;
     
-    // Reset minimap
     document.getElementById('minimap').style.display = 'none';
     document.getElementById('minimap-svg').innerHTML = '';
     
-    const text = file instanceof File ? await file.text() : await (await fetch(file + '?t=' + Date.now())).text();
     wrapper.innerHTML = text;
     document.getElementById('placeholder').style.display = 'none';
     
@@ -367,28 +336,92 @@ async function loadSVGFromFile(file) {
       originalViewBox = {...viewBox};
       updateViewBox();
       
-      // Create minimap
       createMiniMap();
       
       document.getElementById('zoom-controls').style.display = 'flex';
-      const filename = file instanceof File ? file.name : file;
-      setStatus('✅ SVG loaded - ' + filename);
+      setStatus('✅ SVG loaded - ' + file.name);
       
       if (Object.keys(boothMap).length) {
         bindBooths();
-      } else {
-        setStatus('✅ SVG loaded - Upload data file to continue');
       }
     }
-    return true;
   } catch (err) {
     setStatus('❌ Error loading SVG: ' + err.message);
     console.error(err);
-    return false;
   }
 }
 
-// Create Mini Map
+async function handleDataUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  try {
+    let jsonData;
+    
+    if (file.name.endsWith('.csv')) {
+      const text = await file.text();
+      const parsed = Papa.parse(text, {header: true, delimiter: ';', skipEmptyLines: true});
+      jsonData = parsed.data;
+    } else {
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, {type: 'array'});
+      jsonData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+    }
+    
+    boothData = jsonData;
+    boothMap = {};
+    let vipCount = 0, o2oCount = 0, bothCount = 0, vipProCount = 0;
+    
+    jsonData.forEach(row => {
+      const id = String(row['Stand_no'] || '').trim().toUpperCase();
+      if (!id) return;
+      
+      const isVIPPro = row['VIP-Pro'] == 1 || String(row['VIP-Pro']).toLowerCase() === 'yes';
+      const isVIP = row['VIP'] == 1 || String(row['VIP']).toLowerCase() === 'yes';
+      const isO2O = row['O2O'] == 1 || String(row['O2O']).toLowerCase() === 'yes';
+      
+      if (isVIPPro) vipProCount++;
+      if (isVIP && isO2O) bothCount++;
+      else if (isVIP) vipCount++;
+      else if (isO2O) o2oCount++;
+      
+      boothMap[id] = {...row, isVIPPro, isVIP, isO2O};
+    });
+    
+    const t1 = [...new Set(jsonData.map(r => r['T1']).filter(Boolean))].sort();
+    const t2 = [...new Set(jsonData.map(r => r['T2']).filter(Boolean))].sort();
+    const t3 = [...new Set(jsonData.map(r => r['T3']).filter(Boolean))].sort();
+    
+    populateSelect('filter-t1', t1);
+    populateSelect('filter-t2', t2);
+    populateSelect('filter-t3', t3);
+    
+    let statsText = `${jsonData.length} exhibitors`;
+    if (vipProCount > 0) statsText += ` | ${vipProCount} VIP-Pro`;
+    if (bothCount > 0) statsText += ` | ${bothCount} VIP+O2O`;
+    if (vipCount > 0) statsText += ` | ${vipCount} VIP`;
+    if (o2oCount > 0) statsText += ` | ${o2oCount} O2O`;
+    
+    document.getElementById('stats').textContent = statsText;
+    
+    updateTop3Display();
+    
+    setStatus(`✅ Loaded ${jsonData.length} exhibitors from ${file.name}`);
+    
+    if (svgElement) bindBooths();
+    
+  } catch (err) {
+    setStatus('❌ Error loading data: ' + err.message);
+    console.error(err);
+  }
+}
+
+function populateSelect(id, options) {
+  const select = document.getElementById(id);
+  select.innerHTML = '<option value="">All</option>' + 
+    options.map(o => `<option value="${o}">${o}</option>`).join('');
+}
+
 function createMiniMap() {
   const minimapSvg = document.getElementById('minimap-svg');
   const mainSvgClone = svgElement.cloneNode(true);
@@ -396,7 +429,6 @@ function createMiniMap() {
   minimapSvg.innerHTML = mainSvgClone.innerHTML;
   minimapSvg.setAttribute('viewBox', `${originalViewBox.x} ${originalViewBox.y} ${originalViewBox.w} ${originalViewBox.h}`);
   
-  // Add viewport rectangle
   const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   rect.setAttribute('class', 'minimap-viewport');
   rect.setAttribute('id', 'minimap-viewport-rect');
@@ -405,7 +437,6 @@ function createMiniMap() {
   updateMiniMapViewport();
 }
 
-// Update Mini Map Viewport
 function updateMiniMapViewport() {
   const rect = document.getElementById('minimap-viewport-rect');
   if (!rect) return;
@@ -418,7 +449,6 @@ function updateMiniMapViewport() {
   rect.setAttribute('width', viewBox.w);
   rect.setAttribute('height', viewBox.h);
   
-  // Show minimap when zoomed
   const minimap = document.getElementById('minimap');
   if (scaleX > 1.2 || scaleY > 1.2) {
     minimap.style.display = 'block';
@@ -427,138 +457,6 @@ function updateMiniMapViewport() {
   }
 }
 
-// Data Upload (Manual)
-document.getElementById('data-upload').onchange = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  await loadDataFromFile(file);
-};
-
-// Load Data from file or URL
-async function loadDataFromFile(fileOrUrl) {
-  try {
-    let jsonData;
-    
-    if (fileOrUrl instanceof File) {
-      // From file upload
-      const file = fileOrUrl;
-      if (file.name.endsWith('.csv')) {
-        const text = await file.text();
-        const parsed = Papa.parse(text, {header: true, delimiter: ';', skipEmptyLines: true});
-        jsonData = parsed.data;
-      } else {
-        const data = await file.arrayBuffer();
-        const wb = XLSX.read(data, {type: 'array'});
-        jsonData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-      }
-    } else {
-      // From URL
-      const response = await fetch(fileOrUrl + '?t=' + Date.now());
-      if (!response.ok) throw new Error('File not found: ' + fileOrUrl);
-      
-      if (fileOrUrl.endsWith('.csv')) {
-        const text = await response.text();
-        const parsed = Papa.parse(text, {header: true, delimiter: ';', skipEmptyLines: true});
-        jsonData = parsed.data;
-      } else {
-        const data = await response.arrayBuffer();
-        const wb = XLSX.read(data, {type: 'array'});
-        jsonData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-      }
-    }
-    
-    boothData = jsonData;
-    
-    // Debug: Check column names
-    if (jsonData.length > 0) {
-      console.log('📋 CSV Column Names:', Object.keys(jsonData[0]));
-      console.log('🔍 Looking for products column...');
-      
-      const firstRow = jsonData[0];
-      const possibleProductColumns = Object.keys(firstRow).filter(key => 
-        key.toLowerCase().includes('exhibit') || 
-        key.toLowerCase().includes('product')
-      );
-      console.log('📦 Possible product columns:', possibleProductColumns);
-    }
-    
-    // Build map
-    boothMap = {};
-    let vipCount = 0, o2oCount = 0, bothCount = 0, vipProCount = 0;
-    
-    jsonData.forEach(row => {
-      const id = String(row['Stand_no'] || '').trim().toUpperCase();
-      if (!id) return;
-      
-      // VIP-Pro: Column V, value 1 or '1'
-      const isVIPPro = row['VIP-Pro'] == 1 || String(row['VIP-Pro']).toLowerCase() === 'yes';
-      // VIP: Column T, value 1 or '1'
-      const isVIP = row['VIP'] == 1 || String(row['VIP']).toLowerCase() === 'yes';
-      // O2O: Column M, value 1 or '1'
-      const isO2O = row['O2O'] == 1 || String(row['O2O']).toLowerCase() === 'yes';
-      
-      if (isVIPPro) vipProCount++;
-      if (isVIP && isO2O) bothCount++;
-      else if (isVIP) vipCount++;
-      else if (isO2O) o2oCount++;
-      
-      boothMap[id] = {...row, isVIPPro, isVIP, isO2O};
-      
-      // Debug: Log first booth with products
-      if (bothCount + vipCount + o2oCount === 1 && row['Exhibited products']) {
-        console.log('Sample booth data:', {
-          id: id,
-          company: row['Company name'],
-          products: row['Exhibited products'],
-          t1: row['T1'],
-          t2: row['T2'],
-          t3: row['T3']
-        });
-      }
-    });
-    
-    // Populate filters
-    const t1 = [...new Set(jsonData.map(r => r['T1']).filter(Boolean))].sort();
-    const t2 = [...new Set(jsonData.map(r => r['T2']).filter(Boolean))].sort();
-    const t3 = [...new Set(jsonData.map(r => r['T3']).filter(Boolean))].sort();
-    
-    populateSelect('filter-t1', t1);
-    populateSelect('filter-t2', t2);
-    populateSelect('filter-t3', t3);
-    
-    // Update statistics
-    let statsText = `${jsonData.length} exhibitors`;
-    if (vipProCount > 0) statsText += ` | ${vipProCount} VIP-Pro`;
-    if (bothCount > 0) statsText += ` | ${bothCount} VIP+O2O`;
-    if (vipCount > 0) statsText += ` | ${vipCount} VIP`;
-    if (o2oCount > 0) statsText += ` | ${o2oCount} O2O`;
-    
-    document.getElementById('stats').textContent = statsText;
-    
-    // Update Top 3 Display
-    updateTop3Display();
-    
-    const filename = fileOrUrl instanceof File ? fileOrUrl.name : fileOrUrl;
-    setStatus(`✅ Loaded ${jsonData.length} exhibitors from ${filename}`);
-    
-    if (svgElement) bindBooths();
-    
-    return true;
-    
-  } catch (err) {
-    setStatus('❌ Error loading data: ' + err.message);
-    console.error(err);
-    return false;
-  }
-}
-
-function populateSelect(id, options) {
-  const select = document.getElementById(id);
-  select.innerHTML = '<option value="">All</option>' + 
-    options.map(o => `<option value="${o}">${o}</option>`).join('');
-}
-
-// Bind booths
 function bindBooths() {
   if (!svgElement || !Object.keys(boothMap).length) return;
   
@@ -579,19 +477,16 @@ function bindBooths() {
     
     el.style.cursor = 'pointer';
     
-    // Hover tooltip
     el.onmouseenter = (e) => showTooltip(e, booth);
     el.onmousemove = (e) => moveTooltip(e);
     el.onmouseleave = () => hideTooltip();
     
-    // Click handler
     el.onclick = () => selectBooth(id, booth);
   });
   
   applyFilters();
 }
 
-// Tooltip functions
 function showTooltip(e, booth) {
   const tooltip = document.getElementById('tooltip');
   
@@ -606,13 +501,7 @@ function showTooltip(e, booth) {
     badges = '<span class="badge-o2o">🔗 O2O</span>';
   }
   
-  const products = booth['Exhibited products'] || 
-                   booth['Exhibited Products'] || 
-                   booth['exhibited products'] ||
-                   booth['Exhibition products'] ||
-                   booth['Products'] ||
-                   booth['产品'] ||
-                   '';
+  const products = booth['Exhibited products'] || booth['Exhibited Products'] || booth['exhibited products'] || booth['Exhibition products'] || booth['Products'] || booth['产品'] || '';
   
   const productsHtml = products ? 
     `<div class="text-xs text-green-200 mt-1">🏷️ ${products.substring(0, 60)}${products.length > 60 ? '...' : ''}</div>` : '';
@@ -639,11 +528,87 @@ function hideTooltip() {
   document.getElementById('tooltip').style.display = 'none';
 }
 
-// Apply filters
 function applyFilters() {
   if (!svgElement) return;
   
   const filters = {
     company: document.getElementById('filter-company').value.toLowerCase(),
     t1: document.getElementById('filter-t1').value,
-    t2:
+    t2: document.getElementById('filter-t2').value,
+    t3: document.getElementById('filter-t3').value,
+    product: document.getElementById('filter-product').value.toLowerCase(),
+    vip: document.getElementById('filter-vip').checked,
+    o2o: document.getElementById('filter-o2o').checked,
+    both: document.getElementById('filter-both').checked
+  };
+  
+  const elements = svgElement.querySelectorAll('[id], text');
+  let visible = 0;
+  
+  elements.forEach(el => {
+    let id = el.id || el.textContent?.trim();
+    if (!id) return;
+    
+    id = id.toUpperCase();
+    const booth = boothMap[id];
+    
+    if (!booth) return;
+    
+    let match = true;
+    
+    if (filters.company && !booth['Company name']?.toLowerCase().includes(filters.company)) match = false;
+    if (filters.t1 && booth['T1'] !== filters.t1) match = false;
+    if (filters.t2 && booth['T2'] !== filters.t2) match = false;
+    if (filters.t3 && booth['T3'] !== filters.t3) match = false;
+    
+    if (filters.product) {
+      const exhibitedProducts = booth['Exhibited products'] || booth['Exhibited Products'] || booth['exhibited products'] || booth['Exhibition products'] || booth['Products'] || booth['产品'] || '';
+      if (!exhibitedProducts.toLowerCase().includes(filters.product)) {
+        match = false;
+      }
+    }
+    
+    if (filters.both && !(booth.isVIP && booth.isO2O)) match = false;
+    if (filters.vip && !filters.both && !booth.isVIP) match = false;
+    if (filters.o2o && !filters.both && !booth.isO2O) match = false;
+    
+    if (!match) {
+      el.style.opacity = '0.1';
+      el.style.filter = 'grayscale(1)';
+      return;
+    }
+    
+    visible++;
+    el.style.opacity = '1';
+    el.style.filter = '';
+    
+    if (booth.isVIPPro) {
+      el.style.filter = 'drop-shadow(0 0 15px #8b5cf6) brightness(1.5)';
+      el.style.stroke = '#8b5cf6';
+      el.style.strokeWidth = '5';
+    } else if (booth.isVIP && booth.isO2O) {
+      el.style.filter = 'drop-shadow(0 0 12px #fbbf24) drop-shadow(0 0 12px #10b981) brightness(1.4)';
+      el.style.stroke = '#fbbf24';
+      el.style.strokeWidth = '4';
+    } else if (booth.isVIP) {
+      el.style.filter = 'drop-shadow(0 0 10px #fbbf24) brightness(1.3)';
+      el.style.stroke = '#fbbf24';
+      el.style.strokeWidth = '3';
+    } else if (booth.isO2O) {
+      el.style.filter = 'drop-shadow(0 0 8px #10b981) brightness(1.2)';
+      el.style.stroke = '#10b981';
+      el.style.strokeWidth = '2';
+    }
+    
+    if (selectedBooth && id === selectedBooth.id) {
+      el.style.filter = 'drop-shadow(0 0 15px #f59e0b) brightness(1.5)';
+      el.style.stroke = '#f59e0b';
+      el.style.strokeWidth = '5';
+    }
+  });
+  
+  document.getElementById('stats').textContent = `${visible} of ${Object.keys(boothMap).length} visible`;
+}
+
+function debounceFilter() {
+  clearTimeout(filterTimeout
