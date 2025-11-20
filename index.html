@@ -94,6 +94,7 @@
       <p id="status" class="text-sm text-gray-600 mt-1">Upload files to begin</p>
     </div>
     <div class="flex gap-3">
+      <button onclick="clearMap()" class="btn btn-primary bg-red-600 hover:bg-red-700">🗑️ Clear</button>
       <button onclick="document.getElementById('svg-upload').click()" class="btn btn-primary">📄 SVG</button>
       <button onclick="document.getElementById('data-upload').click()" class="btn btn-primary">📊 Data</button>
       <input id="svg-upload" type="file" accept=".svg" style="display:none">
@@ -227,19 +228,40 @@ let isDragging = false;
 let dragStart = {x:0, y:0};
 let filterTimeout = null;
 
+// CONFIG - Files on server
+const CONFIG = {
+  svgFile: 'map.svg',
+  dataFile: 'Sellers.xlsx',
+  autoLoad: true
+};
+
 // Status
 function setStatus(msg) {
   document.getElementById('status').textContent = msg;
+  console.log('[STATUS]', msg);
 }
 
-// SVG Upload
+// SVG Upload (Manual)
 document.getElementById('svg-upload').onchange = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  
+  await loadSVGFromFile(file);
+};
+
+// Load SVG from file or URL
+async function loadSVGFromFile(file) {
   try {
-    const text = await file.text();
-    document.getElementById('svg-wrapper').innerHTML = text;
+    // Clear previous SVG completely
+    const wrapper = document.getElementById('svg-wrapper');
+    wrapper.innerHTML = '';
+    svgElement = null;
+    
+    // Reset minimap
+    document.getElementById('minimap').style.display = 'none';
+    document.getElementById('minimap-svg').innerHTML = '';
+    
+    const text = file instanceof File ? await file.text() : await (await fetch(file + '?t=' + Date.now())).text();
+    wrapper.innerHTML = text;
     document.getElementById('placeholder').style.display = 'none';
     
     svgElement = document.querySelector('#svg-wrapper svg');
@@ -256,15 +278,22 @@ document.getElementById('svg-upload').onchange = async (e) => {
       createMiniMap();
       
       document.getElementById('zoom-controls').style.display = 'flex';
-      setStatus('✅ SVG loaded');
+      const filename = file instanceof File ? file.name : file;
+      setStatus('✅ SVG loaded - ' + filename);
       
-      if (Object.keys(boothMap).length) bindBooths();
+      if (Object.keys(boothMap).length) {
+        bindBooths();
+      } else {
+        setStatus('✅ SVG loaded - Upload data file to continue');
+      }
     }
+    return true;
   } catch (err) {
-    setStatus('❌ Error loading SVG');
+    setStatus('❌ Error loading SVG: ' + err.message);
     console.error(err);
+    return false;
   }
-};
+}
 
 // Create Mini Map
 function createMiniMap() {
@@ -305,22 +334,44 @@ function updateMiniMapViewport() {
   }
 }
 
-// Data Upload
+// Data Upload (Manual)
 document.getElementById('data-upload').onchange = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  
+  await loadDataFromFile(file);
+};
+
+// Load Data from file or URL
+async function loadDataFromFile(fileOrUrl) {
   try {
     let jsonData;
     
-    if (file.name.endsWith('.csv')) {
-      const text = await file.text();
-      const parsed = Papa.parse(text, {header: true, delimiter: ';', skipEmptyLines: true});
-      jsonData = parsed.data;
+    if (fileOrUrl instanceof File) {
+      // From file upload
+      const file = fileOrUrl;
+      if (file.name.endsWith('.csv')) {
+        const text = await file.text();
+        const parsed = Papa.parse(text, {header: true, delimiter: ';', skipEmptyLines: true});
+        jsonData = parsed.data;
+      } else {
+        const data = await file.arrayBuffer();
+        const wb = XLSX.read(data, {type: 'array'});
+        jsonData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+      }
     } else {
-      const data = await file.arrayBuffer();
-      const wb = XLSX.read(data, {type: 'array'});
-      jsonData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+      // From URL
+      const response = await fetch(fileOrUrl + '?t=' + Date.now());
+      if (!response.ok) throw new Error('File not found: ' + fileOrUrl);
+      
+      if (fileOrUrl.endsWith('.csv')) {
+        const text = await response.text();
+        const parsed = Papa.parse(text, {header: true, delimiter: ';', skipEmptyLines: true});
+        jsonData = parsed.data;
+      } else {
+        const data = await response.arrayBuffer();
+        const wb = XLSX.read(data, {type: 'array'});
+        jsonData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+      }
     }
     
     boothData = jsonData;
@@ -330,7 +381,6 @@ document.getElementById('data-upload').onchange = async (e) => {
       console.log('📋 CSV Column Names:', Object.keys(jsonData[0]));
       console.log('🔍 Looking for products column...');
       
-      // Find the products column (might have different name/spacing)
       const firstRow = jsonData[0];
       const possibleProductColumns = Object.keys(firstRow).filter(key => 
         key.toLowerCase().includes('exhibit') || 
@@ -383,15 +433,19 @@ document.getElementById('data-upload').onchange = async (e) => {
     document.getElementById('stats').textContent = 
       `${jsonData.length} exhibitors | ${bothCount} VIP+O2O | ${vipCount} VIP | ${o2oCount} O2O`;
     
-    setStatus(`✅ Loaded ${jsonData.length} exhibitors`);
+    const filename = fileOrUrl instanceof File ? fileOrUrl.name : fileOrUrl;
+    setStatus(`✅ Loaded ${jsonData.length} exhibitors from ${filename}`);
     
     if (svgElement) bindBooths();
     
+    return true;
+    
   } catch (err) {
-    setStatus('❌ Error loading data');
+    setStatus('❌ Error loading data: ' + err.message);
     console.error(err);
+    return false;
   }
-};
+}
 
 function populateSelect(id, options) {
   const select = document.getElementById(id);
@@ -790,6 +844,82 @@ document.addEventListener('mousemove', (e) => {
 
 document.addEventListener('mouseup', () => {
   isDragging = false;
+});
+
+// Clear map function
+function clearMap() {
+  // Clear SVG
+  document.getElementById('svg-wrapper').innerHTML = '';
+  document.getElementById('placeholder').style.display = 'flex';
+  svgElement = null;
+  
+  // Clear minimap
+  document.getElementById('minimap').style.display = 'none';
+  document.getElementById('minimap-svg').innerHTML = '';
+  
+  // Hide zoom controls
+  document.getElementById('zoom-controls').style.display = 'none';
+  
+  // Clear data
+  boothMap = {};
+  boothData = [];
+  selectedBooth = null;
+  
+  // Reset filters
+  document.getElementById('filter-company').value = '';
+  document.getElementById('filter-t1').innerHTML = '<option value="">All</option>';
+  document.getElementById('filter-t2').innerHTML = '<option value="">All</option>';
+  document.getElementById('filter-t3').innerHTML = '<option value="">All</option>';
+  document.getElementById('filter-product').value = '';
+  document.getElementById('filter-vip').checked = false;
+  document.getElementById('filter-o2o').checked = false;
+  document.getElementById('filter-both').checked = false;
+  document.getElementById('quick-search').value = '';
+  
+  // Hide info panel
+  document.getElementById('info-panel').classList.add('hidden');
+  
+  // Reset file inputs
+  document.getElementById('svg-upload').value = '';
+  document.getElementById('data-upload').value = '';
+  
+  // Update status
+  document.getElementById('stats').textContent = 'No data';
+  setStatus('🗑️ Map cleared - Upload new files');
+}
+
+// Auto-load files on page load
+async function autoLoadFiles() {
+  if (!CONFIG.autoLoad) return;
+  
+  console.log('🚀 Auto-loading files from server...');
+  setStatus('🔄 Loading from server...');
+  
+  // Try to load SVG
+  console.log('📄 Loading SVG:', CONFIG.svgFile);
+  const svgLoaded = await loadSVGFromFile(CONFIG.svgFile);
+  
+  // Try to load Data
+  console.log('📊 Loading Data:', CONFIG.dataFile);
+  const dataLoaded = await loadDataFromFile(CONFIG.dataFile);
+  
+  if (svgLoaded && dataLoaded) {
+    setStatus('✅ Exhibition ready!');
+    console.log('✅ Auto-load complete!');
+  } else if (!svgLoaded && !dataLoaded) {
+    setStatus('⚠️ Files not found on server - Use upload buttons');
+    console.log('⚠️ Files not found. Make sure map.svg and Sellers.xlsx are in the root directory.');
+  } else if (!svgLoaded) {
+    setStatus('⚠️ SVG not found - Upload manually');
+  } else {
+    setStatus('⚠️ Data file not found - Upload manually');
+  }
+}
+
+// Initialize on page load
+window.addEventListener('DOMContentLoaded', () => {
+  console.log('📁 CONFIG:', CONFIG);
+  autoLoadFiles();
 });
 </script>
 
